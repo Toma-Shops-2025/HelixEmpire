@@ -1,0 +1,36 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #ff4500;
+  --color-gold: #ffd700;
+  --color-gradient-fire: linear-gradient(to top right, #ff4500, #ff8c00);
+  --color-gradient-gold: linear-gradient(to top right, #bf953f, #fcf6ba, #b38728, #fbf5b7, #aa771c);
+}
+
+:root {
+  background-color: black;
+  color-scheme: dark;
+}
+
+body {
+  margin: 0;
+  overflow: hidden;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.shadow-glow {
+  box-shadow: 0 0 20px rgba(255, 69, 0, 0.3);
+}
+
+.text-gradient-fire {
+  background: linear-gradient(to right, #ff4500, #ff8c00);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.text-gradient-gold {
+  background: linear-gradient(to right, #bf953f, #fcf6ba, #aa771c);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
