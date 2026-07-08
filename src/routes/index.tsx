@@ -8,7 +8,7 @@ import { AdMob, RewardAdPluginEvents, type AdMobRewardItem } from '@capacitor-co
 import { Trophy, Coins, ArrowRight, Loader2, LogIn, Award, X, UserPlus, CheckSquare, Square, Diamond } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 import { Link } from '@tanstack/react-router'
-import { Capacitor } from '@capacitor-core'
+import { Capacitor } from '@capacitor/core'
 
 export const Route = createFileRoute('/')({
   component: GamePage,
