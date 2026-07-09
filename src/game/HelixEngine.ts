@@ -135,8 +135,9 @@ export class HelixEngine {
     platform.userData.isLevelObject = true;
 
     const segments = 12;
-    const gapSize = (isWin || isFirst) ? 0 : 2;
-    const hazardCount = (isWin || isFirst) ? 0 : Math.min(5, 1 + Math.floor(level / 4));
+    // Fix: Allow gaps even on the first floor
+    const gapSize = isWin ? 0 : 2;
+    const hazardCount = isWin ? 0 : Math.min(5, 1 + Math.floor(level / 4));
     const gapStart = Math.floor(Math.random() * segments);
 
     let detail = 32;
