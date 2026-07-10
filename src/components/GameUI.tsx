@@ -8,10 +8,10 @@ type Tab = 'play' | 'inventory' | 'store' | 'event';
 
 const SKINS = [
   { id: 'fire', name: 'Viral Spark', emoji: '🔥', price: 0, type: 'viralcoins' },
-  { id: 'gold', name: 'Liquid Gold', emoji: '📀', price: 250, type: 'viralcoins' },
-  { id: 'glass', name: 'Neon Phantom', emoji: '🔮', price: 500, type: 'viralcoins' },
-  { id: 'yellow', name: 'TomaBox', emoji: '🛍️', price: 1000, type: 'jumppoints' },
-  { id: 'crown', name: 'Grand Crown', emoji: '👑', price: 2000, type: 'viralcoins' },
+  { id: 'gold', name: 'Liquid Gold', emoji: '📀', price: 0, type: 'viralcoins' },
+  { id: 'glass', name: 'Neon Phantom', emoji: '🔮', price: 0, type: 'viralcoins' },
+  { id: 'yellow', name: 'TomaBox', emoji: '🛍️', price: 0, type: 'jumppoints' },
+  { id: 'crown', name: 'Grand Crown', emoji: '👑', price: 0, type: 'viralcoins' },
 ];
 
 export function GameUI({ viralCoins = 0, jumpPoints = 0, currentSkin = 'fire', onSkinSelect, isHidden = false, onTabChange, onOpenShop, onOpenEvent }) {
