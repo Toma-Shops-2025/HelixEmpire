@@ -26,12 +26,12 @@ export class HelixEngine {
 
   private isRotating = false;
   private previousMouseX = 0;
-  private rotationSpeed = 0.012;
 
   public autoRotate = true;
   public isPaused = true;
   private lastHitPlatform: THREE.Object3D | null = null;
   private fallStreak = 0;
+  private lastGapStart = 0;
 
   constructor(container: HTMLDivElement, state: GameState) {
     this.state = state;
@@ -65,7 +65,7 @@ export class HelixEngine {
     this.tower = new THREE.Group();
     this.scene.add(this.tower);
 
-    const cylinderGeo = new THREE.CylinderGeometry(1.5, 1.5, 600, 32);
+    const cylinderGeo = new THREE.CylinderGeometry(1.5, 1.5, 800, 32);
     const cylinderMat = new THREE.MeshStandardMaterial({ color: 0x443300, metalness: 0.9, roughness: 0.1 });
     const column = new THREE.Mesh(cylinderGeo, cylinderMat);
     column.userData.isPillar = true;
@@ -77,11 +77,9 @@ export class HelixEngine {
   }
 
   public updateBackground() {
-    // VIBRANT NEBULA COLORS
     const colors = [0x1a0033, 0x001a33, 0x33001a, 0x00331a];
     this.scene.background = new THREE.Color(colors[this.state.level % colors.length]);
 
-    // Starfield
     const oldStars = this.scene.getObjectByName('stars');
     if (oldStars) this.scene.remove(oldStars);
 
@@ -104,11 +102,29 @@ export class HelixEngine {
 
   private getSkinMaterial(skin: BallSkin): THREE.Material {
     switch (skin) {
-      case 'gold': return new THREE.MeshStandardMaterial({ color: 0xffd700, metalness: 1, roughness: 0, emissive: 0xffaa00, emissiveIntensity: 0.5 });
-      case 'glass': return new THREE.MeshPhysicalMaterial({ color: 0x00ffff, transparent: true, opacity: 0.4, transmission: 1, thickness: 1 });
-      case 'yellow': return new THREE.MeshStandardMaterial({ color: 0xffeb3b, roughness: 0.2 });
-      case 'crown': return new THREE.MeshStandardMaterial({ color: 0xffffff, metalness: 1, emissive: 0xcccccc, emissiveIntensity: 0.5 });
-      default: return new THREE.MeshStandardMaterial({ color: 0xff4500, emissive: 0xff1100, emissiveIntensity: 1.0 });
+      case 'gold': return new THREE.MeshPhysicalMaterial({
+          color: 0xffd700, metalness: 1, roughness: 0.1,
+          emissive: 0xffaa00, emissiveIntensity: 0.8,
+          clearcoat: 1.0, clearcoatRoughness: 0.1
+      });
+      case 'glass': return new THREE.MeshPhysicalMaterial({
+          color: 0xffffff, transparent: true, opacity: 0.2,
+          transmission: 1.0, thickness: 2.0, roughness: 0,
+          ior: 1.5, reflectivity: 1.0
+      });
+      case 'fire': return new THREE.MeshStandardMaterial({
+          color: 0xff4500, emissive: 0xff1100, emissiveIntensity: 2.0
+      });
+      case 'yellow': return new THREE.MeshStandardMaterial({
+          color: 0xffeb3b, roughness: 0, metalness: 0.5,
+          flatShading: true
+      });
+      case 'crown': return new THREE.MeshPhysicalMaterial({
+          color: 0xffffff, metalness: 1.0, roughness: 0.2,
+          emissive: 0x999999, emissiveIntensity: 0.5,
+          sheen: 1.0, sheenColor: 0x00ffff
+      });
+      default: return new THREE.MeshStandardMaterial({ color: 0xff4500 });
     }
   }
 
@@ -120,8 +136,9 @@ export class HelixEngine {
 
     const colors = [0xbc13fe, 0xff007f, 0x0077ff, 0x00ffcc];
     const color = colors[level % colors.length];
-    const platformCount = 12 + (level * 2);
+    const platformCount = 12 + Math.min(level * 2, 40);
 
+    this.lastGapStart = 0;
     for (let i = 0; i < platformCount; i++) {
         this.createPlatform(5 - (i * 6), color, i === platformCount - 1, i === 0, level);
     }
@@ -135,14 +152,28 @@ export class HelixEngine {
     platform.userData.isLevelObject = true;
 
     const segments = 12;
-    // Ensure gaps exist on first floor!
     const gapSize = isWin ? 0 : 2;
     const hazardCount = (isWin || isFirst) ? 0 : Math.min(5, 1 + Math.floor(level / 4));
-    const gapStart = Math.floor(Math.random() * segments);
 
+    // ANTI-ALIGNMENT: Force gaps to be at least 4 segments away from the previous floor
+    let gapStart = Math.floor(Math.random() * segments);
+    if (Math.abs(gapStart - this.lastGapStart) < 4) {
+        gapStart = (this.lastGapStart + 6) % segments;
+    }
+    this.lastGapStart = gapStart;
+
+    // SHAPE EVOLUTION SYSTEM (1-100+)
     let detail = 32;
-    if (level >= 10) detail = 6;
-    else if (level >= 5) detail = 12;
+    if (level >= 30) {
+        // INFINITE SHUFFLE: Pick a random geometry every 5 levels
+        const shapes = [3, 4, 5, 6, 8, 12, 32];
+        detail = shapes[Math.floor(level / 5) % shapes.length];
+    }
+    else if (level >= 25) detail = 3;  // Triangle
+    else if (level >= 20) detail = 4;  // Square
+    else if (level >= 15) detail = 5;  // Pentagon
+    else if (level >= 10) detail = 8;  // Octagon
+    else if (level >= 5)  detail = 12; // Dodecagon
 
     for (let i = 0; i < segments; i++) {
       if (!isWin) {

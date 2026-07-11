@@ -5,7 +5,7 @@ import { GameUI } from '@/components/GameUI'
 import { GameOnboarding } from '@/components/GameOnboarding'
 import { toast } from 'sonner'
 import { AdMob, RewardAdPluginEvents, type AdMobRewardItem } from '@capacitor-community/admob'
-import { Trophy, Coins, ArrowRight, Loader2, LogIn, Award, X, UserPlus, CheckSquare, Square, Diamond } from 'lucide-react'
+import { Trophy, Coins, ArrowRight, Loader2, Award, X, CheckSquare, Square, Diamond } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 import { Link } from '@tanstack/react-router'
 import { Capacitor } from '@capacitor/core'
@@ -18,7 +18,7 @@ function GamePage() {
   const containerRef = useRef<HTMLDivElement>(null)
   const engineRef = useRef<HelixEngine | null>(null)
   const audioRef = useRef<HTMLAudioElement | null>(null)
-  const { user, profile, loading, signIn, signUp, addViralCoins } = useAuth()
+  const { user, profile, signIn, signUp, addViralCoins } = useAuth()
 
   const [skin, setSkin] = useState<BallSkin>('fire')
   const [score, setScore] = useState(0)
@@ -136,9 +136,8 @@ function GamePage() {
     setActiveTab('play')
     if (engineRef.current) {
         engineRef.current.resetToStart()
-        // Ensure unpaused and physics kickstart
-        engineRef.current.isPaused = false;
-        engineRef.current.autoRotate = false;
+        engineRef.current.setPaused(false);
+        engineRef.current.setAutoRotate(false);
         engineRef.current.revive()
     }
     if (audioRef.current) {
@@ -174,10 +173,15 @@ function GamePage() {
   const handleAdRevive = async () => {
     try {
       setIsAdLoading(true)
+      if (audioRef.current) audioRef.current.pause();
+
       const listener = await AdMob.addListener(RewardAdPluginEvents.Rewarded, (reward: AdMobRewardItem) => {
         setGameState('PLAYING')
         engineRef.current?.revive()
-        if (audioRef.current) audioRef.current.play().catch(() => {});
+        if (audioRef.current) {
+            audioRef.current.volume = 1.0;
+            audioRef.current.play().catch(() => {});
+        }
         setIsAdLoading(false)
         listener.remove()
       })
@@ -223,7 +227,7 @@ function GamePage() {
       )}
 
       {/* MODALS */}
-      <div className="absolute inset-0 z-[100] pointer-events-none">
+      <div className="absolute inset-0 z-[500] pointer-events-none">
         {gameState === 'HOME' && activeTab === 'play' && (
             <div className="w-full h-full bg-black/20 backdrop-blur-[1px] flex flex-col items-center justify-between pt-24 pb-48 pointer-events-auto animate-in fade-in duration-700">
                 <div className="flex flex-col items-center pt-8">
@@ -237,11 +241,11 @@ function GamePage() {
                     </button>
                     {!user && (
                         <button onClick={() => { setIsRegistering(false); setGameState('AUTH'); }} className="text-white/40 text-[10px] font-black uppercase tracking-widest hover:text-white transition-colors py-4">
-                            Sign In / Sign Up to Sync
+                            Join the Empire / Sign In to Sync
                         </button>
                     )}
                     <div className="flex flex-col items-center gap-1 mt-4">
-                        <p className="text-white/40 text-[10px] font-bold uppercase tracking-[0.2em]">Empire Network v6.5</p>
+                        <p className="text-white/40 text-[10px] font-bold uppercase tracking-[0.2em]">Empire Network v6.6</p>
                         <div className="flex flex-wrap justify-center gap-x-4 gap-y-2 px-4 text-center">
                             <Link to="/about" className="text-white/30 text-[8px] font-bold uppercase tracking-widest hover:text-white">About</Link>
                             <Link to="/terms" className="text-white/30 text-[8px] font-bold uppercase tracking-widest hover:text-white underline">Terms</Link>
@@ -253,9 +257,9 @@ function GamePage() {
         )}
 
         {/* SHOP MODAL */}
-        {gameState === 'SHOP_DETAILS' && (
-             <div className="w-full h-full bg-black/90 backdrop-blur-xl flex flex-col items-center justify-center p-8 pointer-events-auto animate-in slide-in-from-bottom-10 z-[600]">
-                <button onClick={() => setGameState('HOME')} className="absolute top-12 right-8 text-white/40 p-2 hover:text-white transition-colors"><X className="h-10 w-10" /></button>
+        {(gameState === 'SHOP_DETAILS' || activeTab === 'store') && (
+             <div className="w-full h-full bg-black/95 backdrop-blur-xl flex flex-col items-center justify-center p-8 pointer-events-auto animate-in slide-in-from-bottom-10 z-[600]">
+                <button onClick={() => { setGameState('HOME'); setActiveTab('play'); }} className="absolute top-12 right-8 text-white/40 p-2 hover:text-white transition-colors"><X className="h-10 w-10" /></button>
                 <div className="w-full max-w-sm space-y-10 text-center">
                     <div className="h-32 w-32 bg-blue-600/20 rounded-[40px] flex items-center justify-center mx-auto ring-4 ring-blue-600/40">
                         <Diamond className="h-16 w-16 text-blue-400" />
@@ -263,14 +267,23 @@ function GamePage() {
                     <h2 className="text-5xl font-black italic text-white uppercase tracking-tighter leading-none">Empire Pack</h2>
                     <p className="text-xs font-bold text-white/60 uppercase tracking-widest px-4">Ad-Free Gaming + Pro status in all Empire Network apps.</p>
                     <button onClick={() => toast.info("Google Play Billing starting...")} className="w-full bg-white text-black py-6 rounded-3xl font-black uppercase text-xl shadow-2xl active:scale-95 transition-all">SUBSCRIBE NOW</button>
+                    <div className="bg-white/5 border-2 border-white/10 p-6 rounded-[40px] flex justify-between items-center mt-4">
+                        <div className="flex items-center gap-4 text-left">
+                            <div className="h-12 w-12 bg-yellow-400/20 rounded-2xl flex items-center justify-center">
+                                <Coins className="h-6 w-6 text-yellow-400" />
+                            </div>
+                            <span className="font-black uppercase tracking-tighter leading-none text-lg">1,000 VC</span>
+                        </div>
+                        <div className="bg-primary px-6 py-3 rounded-2xl font-black text-xs shadow-glow">$4.99</div>
+                    </div>
                 </div>
              </div>
         )}
 
         {/* TOURNAMENT MODAL */}
-        {gameState === 'TOURNAMENT' && (
-             <div className="w-full h-full bg-black/90 backdrop-blur-xl flex flex-col items-center justify-center p-8 pointer-events-auto animate-in zoom-in-95 z-[600]">
-                <button onClick={() => setGameState('HOME')} className="absolute top-12 right-8 text-white/40 p-2 hover:text-white transition-colors"><X className="h-10 w-10" /></button>
+        {(gameState === 'TOURNAMENT' || activeTab === 'event') && (
+             <div className="w-full h-full bg-black/95 backdrop-blur-xl flex flex-col items-center justify-center p-8 pointer-events-auto animate-in zoom-in-95 z-[600]">
+                <button onClick={() => { setGameState('HOME'); setActiveTab('play'); }} className="absolute top-12 right-8 text-white/40 p-2 hover:text-white transition-colors"><X className="h-10 w-10" /></button>
                 <div className="w-full max-w-sm space-y-8 text-center">
                     <Trophy className="h-32 w-32 text-yellow-400 mx-auto animate-bounce" />
                     <h2 className="text-5xl font-black italic text-white uppercase tracking-tighter leading-none">Tournament</h2>
@@ -330,7 +343,7 @@ function GamePage() {
                     <button onClick={handleAdRevive} disabled={isAdLoading} className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-6 rounded-3xl font-black uppercase tracking-widest shadow-xl flex items-center justify-center gap-3 active:scale-95 transition-transform text-lg italic">
                         {isAdLoading ? <Loader2 className="h-6 w-6 animate-spin" /> : "Watch Ad to Revive"}
                     </button>
-                    <button onClick={() => { setScore(0); setGameState('HOME'); }} className="w-full border-2 border-white/20 text-white/40 py-4 rounded-3xl font-black uppercase tracking-widest text-[10px] pointer-events-auto">Restart Game</button>
+                    <button onClick={() => { setScore(0); setLevel(1); setGameState('HOME'); }} className="w-full border-2 border-white/20 text-white/40 py-4 rounded-3xl font-black uppercase tracking-widest text-[10px] pointer-events-auto">Restart Game</button>
                 </div>
             </div>
         )}
@@ -350,5 +363,3 @@ function GamePage() {
     </div>
   )
 }
-
-// FORCE SYNC: 2026-07-09 08:32:08
