@@ -355,19 +355,17 @@ function GamePage() {
       </div>
 
       {/* NAVIGATION BAR */}
-      <div className="absolute inset-x-0 bottom-0 z-[1000]">
-          <GameUI
-            viralCoins={profile?.coin_balance || 0}
-            jumpPoints={profile?.jump_balance || 0}
-            currentSkin={skin}
-            onSkinSelect={(s) => {setSkin(s); engineRef.current?.setSkin(s)}}
-            isHidden={gameState === 'PLAYING' && activeTab === 'play'}
-            onTabChange={(t) => { setActiveTab(t); if(t !== 'play') setGameState('HOME'); }}
-            onOpenShop={() => setGameState('SHOP_DETAILS')}
-            onOpenEvent={() => setGameState('TOURNAMENT')}
-            requestPayout={requestPayout}
-          />
-      </div>
+      <GameUI
+        viralCoins={profile?.coin_balance || 0}
+        jumpPoints={profile?.jump_balance || 0}
+        currentSkin={skin}
+        onSkinSelect={(s) => {setSkin(s); engineRef.current?.setSkin(s)}}
+        isHidden={gameState === 'PLAYING' && activeTab === 'play'}
+        onTabChange={(t) => { setActiveTab(t); if(t !== 'play') setGameState('HOME'); }}
+        onOpenShop={() => setGameState('SHOP_DETAILS')}
+        onOpenEvent={() => setGameState('TOURNAMENT')}
+        requestPayout={requestPayout}
+      />
     </div>
   )
 }
