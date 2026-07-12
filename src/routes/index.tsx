@@ -217,7 +217,7 @@ function GamePage() {
           <div className="bg-black/60 backdrop-blur-xl border-2 border-white/10 rounded-2xl px-4 py-2 flex items-center gap-3 shadow-2xl text-right pointer-events-auto">
             <div className="flex flex-col text-right">
               <span className="text-[10px] uppercase font-black tracking-widest text-white/50 leading-none">Progress</span>
-              <span className="text-sm font-black leading-none text-green-400">{jumpPoints.toLocaleString()} JP</span>
+              <span className="text-sm font-black leading-none text-green-400">{(profile?.jump_balance || 0).toLocaleString()} JP</span>
             </div>
             <Award className="h-4 w-4 text-green-400" />
           </div>
@@ -355,17 +355,19 @@ function GamePage() {
       </div>
 
       {/* NAVIGATION BAR */}
-      <GameUI
-        viralCoins={profile?.coin_balance || 0}
-        jumpPoints={profile?.jump_balance || 0}
-        currentSkin={skin}
-        onSkinSelect={(s) => {setSkin(s); engineRef.current?.setSkin(s)}}
-        isHidden={gameState === 'PLAYING' && activeTab === 'play'}
-        onTabChange={(t) => { setActiveTab(t); if(t !== 'play') setGameState('HOME'); }}
-        onOpenShop={() => setGameState('SHOP_DETAILS')}
-        onOpenEvent={() => setGameState('TOURNAMENT')}
-        requestPayout={requestPayout}
-      />
+      <div className="absolute inset-x-0 bottom-0 z-[1000]">
+          <GameUI
+            viralCoins={profile?.coin_balance || 0}
+            jumpPoints={profile?.jump_balance || 0}
+            currentSkin={skin}
+            onSkinSelect={(s) => {setSkin(s); engineRef.current?.setSkin(s)}}
+            isHidden={gameState === 'PLAYING' && activeTab === 'play'}
+            onTabChange={(t) => { setActiveTab(t); if(t !== 'play') setGameState('HOME'); }}
+            onOpenShop={() => setGameState('SHOP_DETAILS')}
+            onOpenEvent={() => setGameState('TOURNAMENT')}
+            requestPayout={requestPayout}
+          />
+      </div>
     </div>
   )
 }

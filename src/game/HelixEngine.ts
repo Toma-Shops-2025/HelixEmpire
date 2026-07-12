@@ -151,40 +151,44 @@ export class HelixEngine {
     platform.position.y = y;
     platform.userData.isLevelObject = true;
 
-    const segments = 12;
-    const gapSize = isWin ? 0 : 2;
-    const hazardCount = (isWin || isFirst) ? 0 : Math.min(5, 1 + Math.floor(level / 4));
+    // EVOLVING DIFFICULTY: More segments = harder to time
+    let segments = 12;
+    let detail = 32; // Smooth
+    let gapSize = 2;
 
-    // ANTI-ALIGNMENT: Force gaps to be at least 4 segments away from the previous floor
+    if (level >= 25) { segments = 3; detail = 1; gapSize = 1; } // Triangle
+    else if (level >= 20) { segments = 4; detail = 1; gapSize = 1; } // Square
+    else if (level >= 15) { segments = 5; detail = 1; gapSize = 1; } // Pentagon
+    else if (level >= 10) { segments = 6; detail = 1; gapSize = 2; } // Hexagon
+    else if (level >= 5)  { segments = 8; detail = 1; gapSize = 2; } // Octagon
+
+    if (isWin) gapSize = 0;
+
+    const hazardCount = (isWin || isFirst) ? 0 : Math.min(Math.floor(segments/2), 1 + Math.floor(level / 5));
+
+    // ANTI-ALIGNMENT: Force gaps to be at least 1/3 turn away from the previous floor
     let gapStart = Math.floor(Math.random() * segments);
-    if (Math.abs(gapStart - this.lastGapStart) < 4) {
-        gapStart = (this.lastGapStart + 6) % segments;
+    const minGapDiff = Math.floor(segments / 3);
+    if (Math.abs(gapStart - this.lastGapStart) < minGapDiff) {
+        gapStart = (this.lastGapStart + Math.floor(segments/2)) % segments;
     }
     this.lastGapStart = gapStart;
-
-    // SHAPE EVOLUTION SYSTEM (1-100+)
-    let detail = 32;
-    if (level >= 30) {
-        // INFINITE SHUFFLE: Pick a random geometry every 5 levels
-        const shapes = [3, 4, 5, 6, 8, 12, 32];
-        detail = shapes[Math.floor(level / 5) % shapes.length];
-    }
-    else if (level >= 25) detail = 3;  // Triangle
-    else if (level >= 20) detail = 4;  // Square
-    else if (level >= 15) detail = 5;  // Pentagon
-    else if (level >= 10) detail = 8;  // Octagon
-    else if (level >= 5)  detail = 12; // Dodecagon
 
     for (let i = 0; i < segments; i++) {
       if (!isWin) {
         const isGap = (i >= gapStart && i < gapStart + gapSize) || (i + segments >= gapStart && i + segments < gapStart + gapSize);
         if (isGap) continue;
       }
-      const isHazard = !isWin && !isFirst && (i >= (gapStart + 6) % segments && i < (gapStart + 6 + hazardCount) % segments);
+
+      // Calculate hazards to be away from the gap
+      const isHazard = !isWin && !isFirst && (i >= (gapStart + Math.floor(segments/2)) % segments && i < (gapStart + Math.floor(segments/2) + hazardCount) % segments);
+
       const arc = (1 / segments) * Math.PI * 2;
       const thickness = isWin ? 3.5 : 0.8;
 
       const matColor = isWin ? 0xffaa00 : (isHazard ? 0xff0000 : color);
+
+      // We use detail=1 for flat edges on polygons
       const segmentGeo = new THREE.CylinderGeometry(6, 6, thickness, detail, 1, false, (i / segments) * Math.PI * 2, arc);
       const segmentMat = new THREE.MeshStandardMaterial({
         color: matColor,
