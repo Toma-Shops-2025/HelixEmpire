@@ -31,7 +31,7 @@ export function GameUI({ viralCoins = 0, jumpPoints = 0, currentSkin = 'fire', o
   };
 
   return (
-    <div className="absolute inset-0 pointer-events-none flex flex-col justify-between text-white transition-opacity duration-300 z-[200]">
+    <div className="absolute inset-0 pointer-events-none flex flex-col justify-between text-white transition-opacity duration-300 z-[1000]">
       <div />
 
       <main className={cn(
