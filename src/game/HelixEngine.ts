@@ -155,11 +155,11 @@ export class HelixEngine {
     let detail = 32; // Smooth
     let gapSize = 2;
 
-    if (level >= 25) { segments = 3; detail = 3; gapSize = 1; } // Triangle
-    else if (level >= 20) { segments = 4; detail = 4; gapSize = 1; } // Square
-    else if (level >= 15) { segments = 5; detail = 5; gapSize = 1; } // Pentagon
-    else if (level >= 10) { segments = 6; detail = 6; gapSize = 2; } // Hexagon
-    else if (level >= 5)  { segments = 8; detail = 8; gapSize = 2; } // Octagon
+    if (level >= 25) { segments = 3; detail = 1; gapSize = 1; } // Triangle
+    else if (level >= 20) { segments = 4; detail = 1; gapSize = 1; } // Square
+    else if (level >= 15) { segments = 5; detail = 1; gapSize = 1; } // Pentagon
+    else if (level >= 10) { segments = 6; detail = 1; gapSize = 2; } // Hexagon
+    else if (level >= 5)  { segments = 8; detail = 1; gapSize = 2; } // Octagon
 
     if (isWin) gapSize = 0;
 

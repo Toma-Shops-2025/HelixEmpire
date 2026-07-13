@@ -63,12 +63,16 @@ function GamePage() {
       onWin: async () => {
         setGameState('WIN')
         const winBonus = 100 + (level * 10);
-        setLocalJP(prev => prev + winBonus);
-        if (user) await addJumpPoints(winBonus);
+        // CRITICAL FIX: Save level score + bonus to DB
+        const totalEarned = score + winBonus;
+        setLocalJP(prev => prev + winBonus); // Score already added to localJP during play
+        if (user) await addJumpPoints(totalEarned);
         toast.success("STAGE CLEAR!")
       },
-      onLoss: () => {
+      onLoss: async () => {
         setGameState('REVIVE')
+        // Save points earned even if they died
+        if (user && score > 0) await addJumpPoints(score);
         if (isNative) AdMob.prepareRewardVideoAd({ adId: REWARDED_AD_ID }).catch(() => {})
       },
       onScoreUpdate: (pts) => {
@@ -79,34 +83,24 @@ function GamePage() {
 
     engineRef.current = engine
     return () => engine.dispose()
-  }, [])
+  }, [user, profile]) // Re-bind engine callbacks when user/profile changes
 
   // Music System - Fixed Overlap using a single persistent reference
   useEffect(() => {
-    // Stop and cleanup any existing audio before starting new
-    if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current.src = "";
-        audioRef.current.load();
-    } else {
+    if (!audioRef.current) {
         audioRef.current = new Audio();
         audioRef.current.loop = true;
     }
 
+    const audio = audioRef.current;
+    audio.pause();
+
     const trackNumber = Math.floor(Math.random() * 15) + 1;
-    audioRef.current.src = `./music/tier${trackNumber}.MP3`;
-    audioRef.current.load();
+    audio.src = `./music/tier${trackNumber}.MP3`;
+    audio.load();
 
     if (gameState === 'PLAYING' || gameState === 'HOME') {
-        audioRef.current.play().catch(() => {});
-    }
-
-    // Cleanup on unmount
-    return () => {
-        if (audioRef.current) {
-            audioRef.current.pause();
-            audioRef.current.src = "";
-        }
+        audio.play().catch(() => {});
     }
   }, [level])
 
@@ -118,7 +112,7 @@ function GamePage() {
     } else if (gameState === 'HOME') {
         audioRef.current.volume = 0.3;
     } else {
-        audioRef.current.volume = 0.1; // Lower volume for menus/death
+        audioRef.current.volume = 0.1;
     }
   }, [gameState])
 
@@ -185,6 +179,7 @@ function GamePage() {
         engineRef.current.revive()
     }
 
+    setScore(0); // Reset score for next stage
     setLevel(prev => prev + 1)
     setGameState('PLAYING')
     setActiveTab('play')
