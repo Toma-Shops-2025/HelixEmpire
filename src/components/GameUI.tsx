@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Home, ShoppingBag, Award, Box, Coins, Check, LogOut, Trophy, Gift, X, Diamond } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/use-auth';
+import { useBilling, PRODUCT_EMPIRE_PACK, PRODUCT_COINS_1000 } from '@/hooks/use-billing';
 import { toast } from 'sonner';
 import { Link } from '@tanstack/react-router';
 
@@ -21,7 +22,8 @@ export function GameUI({ viralCoins = 0, jumpPoints = 0, currentSkin = 'fire', o
   const [shopDetailType, setShopDetailType] = useState<'pack' | 'coins' | null>(null);
   const [showEventDetail, setShowEventDetail] = useState(false);
   const [leaderboard, setLeaderboard] = useState<{username: string, score: number}[]>([]);
-  const { user, signOut, supabase } = useAuth();
+  const { user, signOut, supabase, addViralCoins } = useAuth();
+  const { purchase } = useBilling(addViralCoins);
 
   const handleTab = (tab: Tab) => {
     setActiveTab(tab);
@@ -77,11 +79,11 @@ export function GameUI({ viralCoins = 0, jumpPoints = 0, currentSkin = 'fire', o
           <div className="w-full max-w-md space-y-8 animate-in fade-in slide-in-from-bottom-4 text-center">
             <h2 className="text-5xl font-black italic tracking-tighter uppercase leading-none text-yellow-400">Shop</h2>
             <div className="space-y-4">
-                <button onClick={() => setShopDetailType('pack')} className="w-full bg-gradient-to-r from-blue-600 to-indigo-700 p-6 rounded-[40px] flex justify-between items-center shadow-xl">
+                <button onClick={() => purchase(PRODUCT_EMPIRE_PACK)} className="w-full bg-gradient-to-r from-blue-600 to-indigo-700 p-6 rounded-[40px] flex justify-between items-center shadow-xl">
                     <span className="font-black uppercase tracking-tighter text-lg">Empire Pack</span>
-                    <span className="bg-white text-blue-700 px-6 py-3 rounded-2xl font-black text-xs">UPGRADE</span>
+                    <span className="bg-white text-blue-700 px-6 py-3 rounded-2xl font-black text-xs">BUY</span>
                 </button>
-                <button onClick={() => setShopDetailType('coins')} className="w-full bg-white/5 border-2 border-white/10 p-6 rounded-[40px] flex justify-between items-center">
+                <button onClick={() => purchase(PRODUCT_COINS_1000)} className="w-full bg-white/5 border-2 border-white/10 p-6 rounded-[40px] flex justify-between items-center">
                     <span className="font-black uppercase tracking-tighter text-lg text-left">1,000 ViralCoins</span>
                     <span className="bg-primary px-6 py-3 rounded-2xl font-black text-xs shadow-glow">$4.99</span>
                 </button>
