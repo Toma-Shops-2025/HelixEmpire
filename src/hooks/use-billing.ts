@@ -7,67 +7,81 @@ export const PRODUCT_COINS_1000 = 'coins_1000';
 
 export function useBilling(addViralCoins: (n: number) => void) {
   const [isReady, setIsReady] = useState(false);
-  const [products, setProducts] = useState<any[]>([]);
 
   useEffect(() => {
-    if (typeof window === 'undefined' || !(window as any).store) {
-        console.warn("Store not found. Are you on a device?");
+    // 1. Safety check: make sure we are on a device and the plugin exists
+    const CdvPurchase = (window as any).CdvPurchase;
+
+    if (!CdvPurchase || !CdvPurchase.store) {
+        console.warn("In-App Purchase plugin (CdvPurchase) not found. This hook only works on a real device.");
         return;
     }
 
-    const store = (window as any).store;
+    const store = CdvPurchase.store;
 
-    // 1. Register Products
-    store.register([
-      {
-        id: PRODUCT_EMPIRE_PACK,
-        type: store.NON_CONSUMABLE,
-      },
-      {
-        id: PRODUCT_COINS_1000,
-        type: store.CONSUMABLE,
-      },
-    ]);
+    try {
+        // 2. Register Products (New v13+ Syntax)
+        store.register([
+          {
+            id: PRODUCT_EMPIRE_PACK,
+            type: CdvPurchase.ProductType.NON_CONSUMABLE,
+            platform: CdvPurchase.Platform.GOOGLE_PLAY,
+          },
+          {
+            id: PRODUCT_COINS_1000,
+            type: CdvPurchase.ProductType.CONSUMABLE,
+            platform: CdvPurchase.Platform.GOOGLE_PLAY,
+          },
+        ]);
 
-    // 2. Handle Approvals (This is where the actual logic happens after payment)
-    store.when(PRODUCT_EMPIRE_PACK).approved((p: any) => {
-      toast.success("Empire Pack Activated!");
-      p.finish();
-      // Logic for No Ads / Special Skins would go here
-    });
+        // 3. Handle Approvals (What happens when they pay)
+        store.when().approved((transaction: any) => {
+            if (transaction.productId === PRODUCT_COINS_1000) {
+                toast.success("1,000 ViralCoins added!");
+                addViralCoins(1000);
+            } else if (transaction.productId === PRODUCT_EMPIRE_PACK) {
+                toast.success("Empire Pack Activated!");
+                // Here you would typically set a 'no_ads' flag in your database
+            }
+            transaction.verify();
+            transaction.finish();
+        });
 
-    store.when(PRODUCT_COINS_1000).approved((p: any) => {
-      toast.success("1,000 ViralCoins added!");
-      addViralCoins(1000); // Update the user's wallet in Supabase
-      p.finish();
-    });
+        // Handle Errors
+        store.error((error: any) => {
+          console.error('Store Error: ', error);
+          // Only show toast for actual errors, not cancellations
+          if (error.code !== 6) { // 6 is user cancelled
+            toast.error("Billing error: " + error.message);
+          }
+        });
 
-    // Handle Errors
-    store.error((error: any) => {
-      console.error('Store Error ' + JSON.stringify(error));
-      toast.error("Transaction failed: " + error.message);
-    });
+        // 4. Initialize the store
+        store.initialize([CdvPurchase.Platform.GOOGLE_PLAY]);
 
-    // 3. Refresh the store to load products from Google Play
-    store.ready(() => {
-      setIsReady(true);
-      setProducts(store.products);
-    });
+        setIsReady(true);
+    } catch (err) {
+        console.error("Failed to initialize store:", err);
+    }
 
-    store.refresh();
-
-    return () => {
-        // Clean up listeners if needed (plugin usually handles this)
-    };
   }, [addViralCoins]);
 
   const purchase = (productId: string) => {
-    const store = (window as any).store;
-    if (!store) return toast.error("Billing not available on this device");
+    const CdvPurchase = (window as any).CdvPurchase;
+    if (!CdvPurchase || !CdvPurchase.store) {
+        return toast.error("Billing is only available on a real device.");
+    }
 
-    toast.info("Connecting to Google Play...");
-    store.order(productId);
+    const store = CdvPurchase.store;
+    const product = store.get(productId);
+
+    if (product) {
+        toast.info("Opening Google Play...");
+        store.order(product);
+    } else {
+        toast.error("Product not found. Make sure it is 'Active' in Google Play Console.");
+    }
   };
 
-  return { isReady, products, purchase };
+  return { isReady, purchase };
 }
