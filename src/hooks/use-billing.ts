@@ -29,7 +29,7 @@ export function useBilling(addViralCoins: (n: number) => void) {
 
   const purchase = (id: string) => {
     const CdvPurchase = (window as any).CdvPurchase;
-    if (!CdvPurchase) return toast.error("Not on device");
+    if (!CdvPurchase) return toast.error("Hardware billing not detected.");
 
     const store = CdvPurchase.store;
     const p = store.get(id);
@@ -37,8 +37,8 @@ export function useBilling(addViralCoins: (n: number) => void) {
     if (p) {
         store.order(p);
     } else {
-        store.update(); // Try to sync
-        toast.info("Connecting to Google Play Store... please try again in a moment.");
+        store.update();
+        toast.info("Connecting to Google Play... try again in 5 seconds");
     }
   };
 

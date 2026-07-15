@@ -3,8 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import { HelixEngine } from '@/game/HelixEngine'
 import { GameUI } from '@/components/GameUI'
 import { useAuth } from '@/hooks/use-auth'
-import { AndroidEdgeToEdge } from '@capawesome/capacitor-android-edge-to-edge'
-import { Capacitor } from '@capacitor/core'
+import { AdMob, RewardAdPluginEvents } from '@capacitor-community/admob'
 
 export const Route = createFileRoute('/')({
   component: GamePage,
@@ -21,14 +20,6 @@ function GamePage() {
   const [gameState, setGameState] = useState<'HOME' | 'PLAYING' | 'REVIVE' | 'WIN'>('HOME')
   const [activeTab, setActiveTab] = useState('play')
   const [localJP, setLocalJP] = useState(0)
-
-  // Apply Edge-to-Edge
-  useEffect(() => {
-    if (Capacitor.getPlatform() === 'android') {
-        AndroidEdgeToEdge.setBackgroundColor({ color: '#00000000' });
-        AndroidEdgeToEdge.setNavigationBarStyle({ style: 'dark' });
-    }
-  }, []);
 
   useEffect(() => {
     if (profile) setLocalJP(Number(profile.jump_balance))
@@ -55,35 +46,32 @@ function GamePage() {
     })
     engineRef.current = engine
     return () => engine.dispose()
-  }, [])
+  }, [level])
 
   const startGame = () => {
-    // 1. Hard Audio Force
-    if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current = null;
-    }
+    if (audioRef.current) audioRef.current.pause();
     const audio = new Audio(`/music/tier${((level-1) % 15) + 1}.MP3`);
     audio.loop = true;
-    audio.volume = 0.5;
-    audio.play().catch(e => console.error("Music failed:", e));
+    audio.play().catch(e => console.log("Audio play blocked", e));
     audioRef.current = audio;
 
-    // 2. Wake up Engine
     setScore(0);
     setGameState('PLAYING');
-    if (engineRef.current) {
-        engineRef.current.setupLevel(level);
-        engineRef.current.setPaused(false);
-    }
+    engineRef.current?.setPaused(false);
   }
 
-  const handleRestart = () => {
-    setGameState('HOME');
-    engineRef.current?.resetToStart();
-    if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current = null;
+  const handleRevive = async () => {
+    try {
+        await AdMob.prepareRewardVideoAd({ adId: 'ca-app-pub-3940256099942544/5224354917' });
+        await AdMob.showRewardVideoAd();
+        const listener = AdMob.addListener(RewardAdPluginEvents.Rewarded, () => {
+            setGameState('PLAYING');
+            engineRef.current?.setPaused(false);
+            audioRef.current?.play();
+            listener.remove();
+        });
+    } catch (e) {
+        setGameState('HOME');
     }
   }
 
@@ -99,23 +87,28 @@ function GamePage() {
       )}
 
       {gameState === 'HOME' && activeTab === 'play' && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center z-50 bg-black/30">
-            <h1 className="text-6xl font-black italic mb-12 text-center drop-shadow-2xl">HELIX<br/>EMPIRE</h1>
-            <button onClick={startGame} className="w-64 h-24 bg-primary rounded-full text-4xl font-black italic shadow-glow transition-transform active:scale-95">PLAY</button>
+        <div className="absolute inset-0 flex flex-col items-center justify-center z-50 bg-black/20">
+            <h1 className="text-6xl font-black italic mb-12 text-center">HELIX<br/>EMPIRE</h1>
+            <button onClick={startGame} className="w-64 h-24 bg-primary rounded-full text-4xl font-black italic shadow-glow">PLAY</button>
+            <div className="mt-8 flex gap-6 text-[10px] uppercase font-bold opacity-40">
+                <a href="/privacy">Privacy</a>
+                <a href="/terms">Terms</a>
+            </div>
         </div>
       )}
 
       {gameState === 'WIN' && (
         <div className="absolute inset-0 flex flex-col items-center justify-center z-[100] bg-black/90">
             <h2 className="text-5xl font-black mb-8 italic">SUCCESS</h2>
-            <button onClick={() => { setLevel(l => l+1); handleRestart(); }} className="w-64 py-6 bg-white text-black rounded-3xl font-black text-xl">NEXT STAGE</button>
+            <button onClick={() => { setLevel(l => l+1); setGameState('HOME'); }} className="w-64 py-6 bg-white text-black rounded-3xl font-black text-xl">NEXT STAGE</button>
         </div>
       )}
 
       {gameState === 'REVIVE' && (
         <div className="absolute inset-0 flex flex-col items-center justify-center z-[100] bg-black/90">
-            <h2 className="text-5xl font-black mb-8 italic text-red-500">FAILED</h2>
-            <button onClick={handleRestart} className="w-64 py-6 bg-primary text-white rounded-3xl font-black text-xl">TRY AGAIN</button>
+            <h2 className="text-5xl font-black mb-4 italic text-red-500">FAILED</h2>
+            <button onClick={handleRevive} className="w-64 py-4 bg-green-500 rounded-2xl font-bold mb-4">WATCH AD TO REVIVE</button>
+            <button onClick={() => { setLevel(1); setGameState('HOME'); }} className="w-64 py-4 border-2 border-white/20 rounded-2xl font-bold">START OVER</button>
         </div>
       )}
 

@@ -63,10 +63,10 @@ export function GameUI({ viralCoins = 0, jumpPoints = 0, currentSkin = 'fire', o
   }, [activeTab]);
 
   return (
-    <div className="absolute inset-0 pointer-events-none flex flex-col justify-end text-white z-[1000]">
+    <div className="absolute inset-0 flex flex-col justify-end text-white z-[1000] pointer-events-none">
       <main className={cn(
-        "absolute inset-0 flex flex-col items-center p-6 transition-all duration-500 overflow-y-auto pt-32 pb-32",
-        activeTab === 'play' ? "opacity-0 pointer-events-none" : "opacity-100 bg-black/95 backdrop-blur-3xl pointer-events-auto"
+        "absolute inset-0 flex flex-col items-center p-6 transition-all duration-500 overflow-y-auto pt-32 pb-32 pointer-events-auto",
+        activeTab === 'play' ? "hidden" : "bg-black/95 backdrop-blur-3xl"
       )}>
 
         {activeTab === 'inventory' && (
