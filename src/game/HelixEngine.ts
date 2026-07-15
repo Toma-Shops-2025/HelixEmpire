@@ -20,14 +20,14 @@ export class HelixEngine {
 
   private ballVelocity = 0;
   private jumpForce = 0.28;
-  private gravity = -0.012;
+  private gravity = -0.015;
 
   private isRotating = false;
   private previousMouseX = 0;
 
   public autoRotate = true;
   public isPaused = true;
-  private lastHitPlatform: THREE.Object3D | null = null;
+  private lastHitPlatform: any = null;
 
   constructor(container: HTMLDivElement, state: GameState) {
     this.state = state;
@@ -42,7 +42,7 @@ export class HelixEngine {
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     container.appendChild(this.renderer.domElement);
 
-    const ambientLight = new THREE.AmbientLight(0xffffff, 1.0);
+    const ambientLight = new THREE.AmbientLight(0xffffff, 1.2);
     this.scene.add(ambientLight);
 
     const ballGeo = new THREE.SphereGeometry(0.45, 32, 32);
@@ -54,7 +54,7 @@ export class HelixEngine {
     this.scene.add(this.tower);
 
     const cylinderGeo = new THREE.CylinderGeometry(1.5, 1.5, 800, 32);
-    const cylinderMat = new THREE.MeshStandardMaterial({ color: 0x333333 });
+    const cylinderMat = new THREE.MeshStandardMaterial({ color: 0x222222 });
     const column = new THREE.Mesh(cylinderGeo, cylinderMat);
     this.tower.add(column);
 
@@ -67,7 +67,8 @@ export class HelixEngine {
     this.isPaused = val;
     if (!val) {
         this.autoRotate = false;
-        this.ballVelocity = -0.1; // Jumpstart
+        // STRONG KICK: ensure the ball starts falling
+        this.ballVelocity = -0.15;
     }
   }
 
@@ -93,7 +94,7 @@ export class HelixEngine {
     for (let i = 0; i < segments; i++) {
       if (!isWin && (i === gapStart || i === (gapStart + 1) % segments)) continue;
 
-      const isHazard = !isWin && !isFirst && Math.random() > 0.8;
+      const isHazard = !isWin && !isFirst && Math.random() > 0.85;
       const arc = (1 / segments) * Math.PI * 2;
       const geo = new THREE.CylinderGeometry(6, 6, 0.8, 32, 1, false, (i / segments) * Math.PI * 2, arc);
       const mat = new THREE.MeshStandardMaterial({ color: isWin ? 0xffaa00 : (isHazard ? 0xff0000 : color) });
@@ -107,7 +108,7 @@ export class HelixEngine {
   private setupInputs() {
     const move = (x: number) => {
         if (!this.isRotating) return;
-        this.tower.rotation.y += (x - this.previousMouseX) * 0.02;
+        this.tower.rotation.y += (x - this.previousMouseX) * 0.025;
         this.previousMouseX = x;
     };
     window.addEventListener('mousedown', e => { this.isRotating = true; this.previousMouseX = e.clientX; });
@@ -120,7 +121,8 @@ export class HelixEngine {
 
   private animate = () => {
     requestAnimationFrame(this.animate);
-    if (this.autoRotate) this.tower.rotation.y += 0.01;
+    if (this.autoRotate) this.tower.rotation.y += 0.015;
+
     if (!this.isPaused) {
         this.ballVelocity += this.gravity;
         this.ball.position.y += this.ballVelocity;
@@ -135,10 +137,11 @@ export class HelixEngine {
     if (this.ballVelocity > 0) return;
     this.raycaster.set(this.ball.position, new THREE.Vector3(0, -1, 0));
     const hits = this.raycaster.intersectObjects(this.tower.children, true);
-    if (hits.length > 0 && hits[0].distance < 0.5) {
+    if (hits.length > 0 && hits[0].distance < 0.45) {
         const obj = hits[0].object;
         if (obj.userData.isWinPlatform) return this.state.onWin();
         if (obj.userData.isHazard) return this.state.onLoss();
+
         this.ballVelocity = this.jumpForce;
         if (this.lastHitPlatform !== obj.parent) {
             this.state.onScoreUpdate(10);
@@ -150,8 +153,8 @@ export class HelixEngine {
   public resetToStart() {
     this.ball.position.set(0, 8.5, 5.5);
     this.ballVelocity = 0;
-    this.camera.position.y = 15;
-    this.camera.lookAt(0, 5, 0);
+    this.isPaused = true;
+    this.autoRotate = true;
   }
 
   public setSkin(s: string) {}

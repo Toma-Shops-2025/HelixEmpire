@@ -3,6 +3,8 @@ import { useEffect, useRef, useState } from 'react'
 import { HelixEngine } from '@/game/HelixEngine'
 import { GameUI } from '@/components/GameUI'
 import { useAuth } from '@/hooks/use-auth'
+import { AndroidEdgeToEdge } from '@capawesome/capacitor-android-edge-to-edge'
+import { Capacitor } from '@capacitor/core'
 
 export const Route = createFileRoute('/')({
   component: GamePage,
@@ -20,19 +22,32 @@ function GamePage() {
   const [activeTab, setActiveTab] = useState('play')
   const [localJP, setLocalJP] = useState(0)
 
+  // Apply Edge-to-Edge
+  useEffect(() => {
+    if (Capacitor.getPlatform() === 'android') {
+        AndroidEdgeToEdge.setBackgroundColor({ color: '#00000000' });
+        AndroidEdgeToEdge.setNavigationBarStyle({ style: 'dark' });
+    }
+  }, []);
+
   useEffect(() => {
     if (profile) setLocalJP(Number(profile.jump_balance))
   }, [profile])
 
-  // Initialize Engine once
   useEffect(() => {
     if (!containerRef.current) return
     const engine = new HelixEngine(containerRef.current, {
       score: 0,
       level: level,
       isGameOver: false,
-      onWin: () => setGameState('WIN'),
-      onLoss: () => setGameState('REVIVE'),
+      onWin: () => {
+          setGameState('WIN');
+          audioRef.current?.pause();
+      },
+      onLoss: () => {
+          setGameState('REVIVE');
+          audioRef.current?.pause();
+      },
       onScoreUpdate: (pts) => {
           setScore(prev => prev + pts)
           setLocalJP(prev => prev + pts)
@@ -43,14 +58,18 @@ function GamePage() {
   }, [])
 
   const startGame = () => {
-    // 1. Force Local Music
-    if (!audioRef.current) {
-        audioRef.current = new Audio(`/music/tier${((level-1) % 15) + 1}.MP3`);
-        audioRef.current.loop = true;
+    // 1. Hard Audio Force
+    if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
     }
-    audioRef.current.play().catch(e => console.error("Audio blocked", e));
+    const audio = new Audio(`/music/tier${((level-1) % 15) + 1}.MP3`);
+    audio.loop = true;
+    audio.volume = 0.5;
+    audio.play().catch(e => console.error("Music failed:", e));
+    audioRef.current = audio;
 
-    // 2. Start Engine
+    // 2. Wake up Engine
     setScore(0);
     setGameState('PLAYING');
     if (engineRef.current) {
@@ -64,7 +83,7 @@ function GamePage() {
     engineRef.current?.resetToStart();
     if (audioRef.current) {
         audioRef.current.pause();
-        audioRef.current = null; // Reset for next level music
+        audioRef.current = null;
     }
   }
 
@@ -80,9 +99,9 @@ function GamePage() {
       )}
 
       {gameState === 'HOME' && activeTab === 'play' && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center z-50 bg-black/40">
-            <h1 className="text-6xl font-black italic mb-12 text-center">HELIX<br/>EMPIRE</h1>
-            <button onClick={startGame} className="w-64 h-24 bg-primary rounded-full text-4xl font-black italic shadow-2xl transition-transform active:scale-95">PLAY</button>
+        <div className="absolute inset-0 flex flex-col items-center justify-center z-50 bg-black/30">
+            <h1 className="text-6xl font-black italic mb-12 text-center drop-shadow-2xl">HELIX<br/>EMPIRE</h1>
+            <button onClick={startGame} className="w-64 h-24 bg-primary rounded-full text-4xl font-black italic shadow-glow transition-transform active:scale-95">PLAY</button>
         </div>
       )}
 
