@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { useEffect, useRef, state, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { HelixEngine } from '@/game/HelixEngine'
 import { GameUI } from '@/components/GameUI'
 import { useAuth } from '@/hooks/use-auth'
@@ -33,8 +33,14 @@ function GamePage() {
     const engine = new HelixEngine(containerRef.current, {
       score: 0,
       level: level,
-      onWin: () => setGameState('WIN'),
-      onLoss: () => setGameState('REVIVE'),
+      onWin: () => {
+          setGameState('WIN');
+          if (audioRef.current) audioRef.current.pause();
+      },
+      onLoss: () => {
+          setGameState('REVIVE');
+          if (audioRef.current) audioRef.current.pause();
+      },
       onScoreUpdate: (pts) => {
           setScore(prev => prev + pts)
           setLocalJP(prev => prev + pts)
@@ -49,9 +55,16 @@ function GamePage() {
   }, [level, activeTab])
 
   const startGame = () => {
+    // STOP PREVIOUS MUSIC ENTIRELY
+    if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
+        audioRef.current = null;
+    }
+
     const audio = new Audio(`music/tier${((level-1) % 15) + 1}.MP3`);
     audio.loop = true;
-    audio.play().catch(() => {});
+    audio.play().catch(e => console.log("Audio play blocked", e));
     audioRef.current = audio;
 
     setScore(0);
@@ -65,16 +78,13 @@ function GamePage() {
     try {
         await AdMob.prepareRewardVideoAd({ adId: 'ca-app-pub-3940256099942544/5224354917' });
         await AdMob.showRewardVideoAd();
-
-        // Use a one-time listener to prevent loops
         const listener = await AdMob.addListener(RewardAdPluginEvents.Rewarded, () => {
             setGameState('PLAYING');
             engineRef.current?.setPaused(false);
             if (audioRef.current) audioRef.current.play();
-            listener.remove(); // Clean up immediately
+            listener.remove();
         });
     } catch (e) {
-        // If ad fails, just let them play anyway (failsafe)
         setGameState('PLAYING');
         engineRef.current?.setPaused(false);
     }
@@ -86,13 +96,9 @@ function GamePage() {
 
   return (
     <div className="relative w-full h-screen overflow-hidden bg-black text-white">
-      {/* 3D Game Layer */}
-      <div
-        ref={containerRef}
-        className="absolute inset-0 z-0"
-      />
+      <div ref={containerRef} className="absolute inset-0 z-0" />
 
-      {/* TOP HUD - Points & Coins (Visible everywhere except when actually playing) */}
+      {/* TOP HUD */}
       {gameState !== 'PLAYING' && (
         <div className="absolute top-12 left-0 right-0 px-6 flex justify-between items-center z-[1000] pointer-events-none">
             <div className="flex items-center gap-2 bg-black/40 backdrop-blur-md px-4 py-2 rounded-full border border-white/10">
@@ -106,7 +112,6 @@ function GamePage() {
         </div>
       )}
 
-      {/* SCORE DISPLAY during gameplay */}
       {gameState === 'PLAYING' && (
         <div className="absolute top-24 left-1/2 -translate-x-1/2 z-10 text-center pointer-events-none">
             <div className="text-[10px] opacity-50 uppercase font-black tracking-widest">Stage {level}</div>
@@ -114,19 +119,13 @@ function GamePage() {
         </div>
       )}
 
-      {/* GAME OVERLAYS (Home, Win, Revive) */}
       {activeTab === 'play' && gameState !== 'PLAYING' && (
         <div className="absolute inset-0 flex flex-col items-center justify-center z-[500] bg-black/50 backdrop-blur-[2px] px-6 text-center">
 
             {gameState === 'HOME' && (
                 <div className="animate-in fade-in zoom-in duration-300 flex flex-col items-center">
                     <h1 className="text-6xl font-extrabold italic mb-12 leading-tight tracking-tighter">HELIX<br/>EMPIRE</h1>
-                    <button
-                        onClick={startGame}
-                        className="w-64 h-24 bg-[#FF4500] rounded-full text-4xl font-black italic shadow-[0_0_50px_rgba(255,69,0,0.4)] active:scale-95 transition-all"
-                    >
-                        PLAY
-                    </button>
+                    <button onClick={startGame} className="w-64 h-24 bg-[#FF4500] rounded-full text-4xl font-black italic shadow-[0_0_50px_rgba(255,69,0,0.4)] active:scale-95 transition-all">PLAY</button>
                     <div className="mt-12 flex gap-8 text-[12px] font-black uppercase tracking-widest opacity-40 pointer-events-auto">
                         <span className="cursor-pointer hover:text-primary" onClick={() => openLink('https://viralsnap.online/privacy')}>Privacy</span>
                         <span className="cursor-pointer hover:text-primary" onClick={() => openLink('https://viralsnap.online/terms')}>Terms</span>
@@ -137,41 +136,23 @@ function GamePage() {
             {gameState === 'WIN' && (
                 <div className="animate-in fade-in zoom-in duration-300 flex flex-col items-center">
                     <h2 className="text-6xl font-black mb-12 italic text-yellow-400 drop-shadow-2xl">SUCCESS</h2>
-                    <button
-                        onClick={() => { setGameState('HOME'); setLevel(l => l + 1); }}
-                        className="w-72 py-8 bg-white text-black rounded-[40px] font-black text-2xl shadow-2xl active:scale-95 transition-all"
-                    >
-                        NEXT STAGE
-                    </button>
+                    <button onClick={() => { setGameState('HOME'); setLevel(l => l + 1); }} className="w-72 py-8 bg-white text-black rounded-[40px] font-black text-2xl shadow-2xl active:scale-95 transition-all">NEXT STAGE</button>
                 </div>
             )}
 
             {gameState === 'REVIVE' && (
                 <div className="animate-in fade-in zoom-in duration-300 flex flex-col items-center w-full">
                     <h2 className="text-6xl font-black mb-8 italic text-red-500">FAILED</h2>
-                    <button
-                        onClick={handleRevive}
-                        className="w-full max-w-xs py-6 bg-green-500 rounded-[30px] font-black text-xl mb-4 shadow-lg active:scale-95 transition-all"
-                    >
-                        WATCH AD TO REVIVE
-                    </button>
-                    <button
-                        onClick={() => { setGameState('HOME'); setLevel(1); }}
-                        className="w-full max-w-xs py-6 border-4 border-white/10 bg-white/5 rounded-[30px] font-black text-xl active:scale-95 transition-all"
-                    >
-                        START OVER
-                    </button>
+                    <button onClick={handleRevive} className="w-full max-w-xs py-6 bg-green-500 rounded-[30px] font-black text-xl mb-4 shadow-lg active:scale-95 transition-all">WATCH AD TO REVIVE</button>
+                    <button onClick={() => { setGameState('HOME'); setLevel(1); }} className="w-full max-w-xs py-6 border-4 border-white/10 bg-white/5 rounded-[30px] font-black text-xl active:scale-95 transition-all">START OVER</button>
                 </div>
             )}
         </div>
       )}
 
-      {/* Main UI System */}
       <GameUI
         activeTab={activeTab}
         setActiveTab={setActiveTab}
-        viralCoins={profile?.coin_balance || 0}
-        jumpPoints={localJP}
         onSkinSelect={(s) => engineRef.current?.setSkin(s)}
         isHidden={gameState === 'PLAYING'}
         onTabChange={(t) => { if(t !== 'play') setGameState('HOME'); }}
