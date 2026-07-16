@@ -39,9 +39,8 @@ export class HelixEngine {
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x050510);
 
-    // Stars
+    const starCount = 1500;
     const starGeo = new THREE.BufferGeometry();
-    const starCount = 2000;
     const posArray = new Float32Array(starCount * 3);
     for(let i=0; i<starCount*3; i++) posArray[i] = (Math.random() - 0.5) * 100;
     starGeo.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
@@ -50,7 +49,7 @@ export class HelixEngine {
     this.camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
     this.camera.position.set(0, 15, 20);
 
-    this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+    this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.setSize(window.innerWidth, window.innerHeight);
 
@@ -62,10 +61,10 @@ export class HelixEngine {
     sun.position.set(5, 10, 7);
     this.scene.add(sun);
 
-    // Ball with Transparency enabled for glass skin
+    // Initial ball
     this.ball = new THREE.Mesh(
         new THREE.SphereGeometry(0.45, 32, 32),
-        new THREE.MeshStandardMaterial({ color: 0xff4500, metalness: 0.5, roughness: 0.2, transparent: true })
+        new THREE.MeshStandardMaterial({ color: 0xff4500, metalness: 0.6, roughness: 0.2, transparent: true })
     );
     this.ball.position.set(0, 8.5, 5.5);
     this.scene.add(this.ball);
@@ -196,24 +195,15 @@ export class HelixEngine {
     }
   }
 
-  public resetToStart() {
-    if (!this.ball || !this.camera) return;
-    this.ball.position.set(0, 8.5, 5.5);
-    this.ballVelocity = 0;
-    this.isPaused = true;
-    this.autoRotate = true;
-    this.camera.position.set(0, 15, 20);
-    this.camera.lookAt(0, 5, 0);
-  }
-
   public setSkin(s: string) {
     if (this.ball) {
         const mat = this.ball.material as THREE.MeshStandardMaterial;
         mat.opacity = 1.0;
+        mat.needsUpdate = true;
         if (s === 'gold') mat.color.set(0xffd700);
         else if (s === 'glass') { mat.color.set(0xffffff); mat.opacity = 0.4; }
         else if (s === 'yellow') mat.color.set(0xffff00);
-        else if (s === 'crown') mat.color.set(0xff00ff);
+        else if (s === 'crown') mat.color.set(0xaa00ff);
         else mat.color.set(0xff4500);
     }
   }
