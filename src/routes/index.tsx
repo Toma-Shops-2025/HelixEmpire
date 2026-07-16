@@ -5,7 +5,7 @@ import { GameUI } from '@/components/GameUI'
 import { useAuth } from '@/hooks/use-auth'
 import { AdMob, RewardAdPluginEvents } from '@capacitor-community/admob'
 import { Browser } from '@capacitor/browser'
-import { Coins, Zap, Mail, Lock, User as UserIcon } from 'lucide-react'
+import { Coins, Zap, Mail, Lock, User as UserIcon, Eye, EyeOff, CheckCircle2 } from 'lucide-react'
 
 export const Route = createFileRoute('/')({
   component: GamePage,
@@ -17,25 +17,36 @@ function GamePage() {
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const { user, profile, signIn, signUp, addJumpPoints, supabase } = useAuth()
 
-  // Master State
-  const [activeTab, setActiveTab] = useState<'play' | 'inventory' | 'store' | 'event' | 'store_detail' | 'catalog'>('play')
+  // States
+  const [activeTab, setActiveTab] = useState<'play' | 'inventory' | 'store' | 'event' | 'store_pack' | 'store_coins' | 'catalog'>('play')
   const [gameState, setGameState] = useState<'HOME' | 'PLAYING' | 'REVIVE' | 'WIN'>('HOME')
   const [score, setScore] = useState(0)
   const [level, setLevel] = useState(1)
   const [currentSkin, setCurrentSkin] = useState('fire')
 
-  // Auth States
+  // Auth/Form States
   const [isLogin, setIsLogin] = useState(true)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [username, setUsername] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
+  const [agreedToTerms, setAgreedToTerms] = useState(false)
 
+  // Pre-load Ad
+  useEffect(() => {
+    if (user) {
+        AdMob.prepareRewardVideoAd({ adId: 'ca-app-pub-3940256099942544/5224354917' }).catch(() => {});
+    }
+  }, [user]);
+
+  // Sync Score to DB
   useEffect(() => {
       if ((gameState === 'WIN' || gameState === 'REVIVE') && score > 0) {
           addJumpPoints(score);
       }
   }, [gameState]);
 
+  // Engine Lifecycle
   useEffect(() => {
     if (!containerRef.current || activeTab !== 'play' || !user) return
     if (engineRef.current) engineRef.current.dispose();
@@ -70,32 +81,71 @@ function GamePage() {
     setTimeout(() => engineRef.current?.setPaused(false), 150);
   }
 
+  const handleRevive = async () => {
+    try {
+        const listener = await AdMob.addListener(RewardAdPluginEvents.Rewarded, () => {
+            setGameState('PLAYING');
+            engineRef.current?.setPaused(false);
+            if (audioRef.current) audioRef.current.play();
+            listener.remove();
+        });
+        await AdMob.showRewardVideoAd();
+    } catch (e) {
+        setGameState('PLAYING');
+        engineRef.current?.setPaused(false);
+    }
+  }
+
+  const handleAuth = async (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!isLogin && !agreedToTerms) return alert("You must agree to the terms to join the Empire.");
+      try {
+          if (isLogin) await signIn(email, password);
+          else await signUp(email, password, username);
+      } catch (err: any) { alert(err.message); }
+  }
+
   if (!user) {
       return (
-          <div className="h-screen w-full bg-[#050510] flex flex-col items-center justify-center p-8 text-white">
+          <div className="h-screen w-full bg-[#050510] flex flex-col items-center justify-start pt-20 px-8 text-white overflow-y-auto">
               <h1 className="text-6xl font-black italic mb-2 text-primary tracking-tighter">HELIX</h1>
-              <p className="text-white/40 uppercase tracking-[0.4em] text-[9px] mb-12 font-bold">Empire Rewards System</p>
-              <form onSubmit={(e) => { e.preventDefault(); isLogin ? signIn(email, password) : signUp(email, password, username); }} className="w-full max-w-sm space-y-3">
+              <p className="text-white/40 uppercase tracking-[0.4em] text-[9px] mb-12 font-bold text-center">Empire Rewards System</p>
+
+              <form onSubmit={handleAuth} className="w-full max-w-sm space-y-3">
                   {!isLogin && (
-                      <div className="bg-white/5 border border-white/10 rounded-2xl flex items-center px-4 py-4">
+                      <div className="bg-white/5 border border-white/10 rounded-2xl flex items-center px-4 py-4 focus-within:border-primary/50 transition-colors">
                           <UserIcon className="h-5 w-5 text-white/20 mr-3" />
-                          <input type="text" placeholder="Username" className="bg-transparent outline-none w-full font-bold" value={username} onChange={e => setUsername(e.target.value)} required />
+                          <input type="text" placeholder="Desired Username" className="bg-transparent outline-none w-full font-bold" value={username} onChange={e => setUsername(e.target.value)} required />
                       </div>
                   )}
-                  <div className="bg-white/5 border border-white/10 rounded-2xl flex items-center px-4 py-4">
+                  <div className="bg-white/5 border border-white/10 rounded-2xl flex items-center px-4 py-4 focus-within:border-primary/50 transition-colors">
                       <Mail className="h-5 w-5 text-white/20 mr-3" />
                       <input type="email" placeholder="Email Address" className="bg-transparent outline-none w-full font-bold" value={email} onChange={e => setEmail(e.target.value)} required />
                   </div>
-                  <div className="bg-white/5 border border-white/10 rounded-2xl flex items-center px-4 py-4">
+                  <div className="bg-white/5 border border-white/10 rounded-2xl flex items-center px-4 py-4 focus-within:border-primary/50 transition-colors">
                       <Lock className="h-5 w-5 text-white/20 mr-3" />
-                      <input type="password" placeholder="Password" className="bg-transparent outline-none w-full font-bold" value={password} onChange={e => setPassword(e.target.value)} required />
+                      <input type={showPassword ? "text" : "password"} placeholder="Password" className="bg-transparent outline-none w-full font-bold" value={password} onChange={e => setPassword(e.target.value)} required />
+                      <button type="button" onClick={() => setShowPassword(!showPassword)} className="text-white/20 hover:text-white">
+                          {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                      </button>
                   </div>
+
+                  {!isLogin && (
+                      <div className="flex items-start gap-3 py-2 px-1">
+                          <input type="checkbox" id="terms" checked={agreedToTerms} onChange={e => setAgreedToTerms(e.target.checked)} className="mt-1" />
+                          <label htmlFor="terms" className="text-[10px] text-white/40 leading-tight">
+                              I agree to the <span className="text-white/60 underline" onClick={() => Browser.open({url: 'https://viralsnap.online/terms'})}>Terms of Service</span> and <span className="text-white/60 underline" onClick={() => Browser.open({url: 'https://viralsnap.online/privacy'})}>Privacy Policy</span>.
+                          </label>
+                      </div>
+                  )}
+
                   <button type="submit" className="w-full bg-primary py-5 rounded-3xl font-black uppercase tracking-widest shadow-glow active:scale-95 transition-all mt-4">
-                      {isLogin ? 'Login to Play' : 'Create Account'}
+                      {isLogin ? 'Enter Empire' : 'Create Empire Account'}
                   </button>
               </form>
-              <div className="mt-8 flex flex-col items-center gap-4 w-full max-w-sm">
-                  <button onClick={() => supabase.auth.signInWithOAuth({ provider: 'google' })} className="w-full bg-white text-black py-4 rounded-3xl font-bold flex items-center justify-center gap-3">
+
+              <div className="mt-8 mb-12 flex flex-col items-center gap-4 w-full max-w-sm">
+                  <button onClick={() => supabase.auth.signInWithOAuth({ provider: 'google' })} className="w-full bg-white text-black py-4 rounded-3xl font-bold flex items-center justify-center gap-3 active:scale-95 transition-transform">
                       <img src="https://www.google.com/favicon.ico" className="w-4 h-4" /> Continue with Google
                   </button>
                   <button onClick={() => setIsLogin(!isLogin)} className="text-white/40 font-bold text-sm uppercase tracking-tighter mt-4">
@@ -150,7 +200,7 @@ function GamePage() {
             {gameState === 'REVIVE' && (
                 <div className="animate-in fade-in zoom-in duration-300 flex flex-col items-center w-full">
                     <h2 className="text-6xl font-black mb-8 italic text-red-500">FAILED</h2>
-                    <button onClick={() => { setGameState('PLAYING'); engineRef.current?.setPaused(false); }} className="w-full max-w-xs py-6 bg-green-500 rounded-[30px] font-black text-xl mb-4 shadow-lg active:scale-95 transition-all">WATCH AD TO REVIVE</button>
+                    <button onClick={handleRevive} className="w-full max-w-xs py-6 bg-green-500 rounded-[30px] font-black text-xl mb-4 shadow-lg active:scale-95 transition-all">WATCH AD TO REVIVE</button>
                     <button onClick={() => { setGameState('HOME'); setLevel(1); }} className="w-full max-w-xs py-6 border-4 border-white/10 bg-white/5 rounded-[30px] font-black text-xl active:scale-95 transition-all">START OVER</button>
                 </div>
             )}
@@ -161,7 +211,6 @@ function GamePage() {
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         currentSkin={currentSkin}
-        setCurrentSkin={setCurrentSkin}
         onSkinSelect={(s) => {
             setCurrentSkin(s);
             engineRef.current?.setSkin(s);
