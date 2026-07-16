@@ -11,8 +11,8 @@ export interface GameState {
 export class HelixEngine {
   private scene: THREE.Scene | null = null;
   private camera: THREE.PerspectiveCamera | null = null;
-  private renderer: THREE.WebGLRenderer | null = null;
-  private ball: THREE.Mesh | null = null;
+  public renderer: THREE.WebGLRenderer | null = null;
+  public ball: THREE.Mesh | null = null;
   private tower: THREE.Group | null = null;
   private state: GameState;
   private raycaster: THREE.Raycaster = new THREE.Raycaster();
@@ -28,6 +28,7 @@ export class HelixEngine {
   private lastHitPlatform: any = null;
   private container: HTMLDivElement;
   private animationId: number | null = null;
+  private clock = new THREE.Clock();
 
   constructor(container: HTMLDivElement, state: GameState) {
     this.container = container;
@@ -39,7 +40,7 @@ export class HelixEngine {
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x050510);
 
-    const starCount = 1500;
+    const starCount = 2000;
     const starGeo = new THREE.BufferGeometry();
     const posArray = new Float32Array(starCount * 3);
     for(let i=0; i<starCount*3; i++) posArray[i] = (Math.random() - 0.5) * 100;
@@ -49,22 +50,22 @@ export class HelixEngine {
     this.camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
     this.camera.position.set(0, 15, 20);
 
-    this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+    this.renderer = new THREE.WebGLRenderer({ antialias: true });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.setSize(window.innerWidth, window.innerHeight);
 
     while (this.container.firstChild) this.container.removeChild(this.container.firstChild);
     this.container.appendChild(this.renderer.domElement);
 
-    this.scene.add(new THREE.AmbientLight(0xffffff, 1.2));
-    const sun = new THREE.DirectionalLight(0xffffff, 1.0);
+    this.scene.add(new THREE.AmbientLight(0xffffff, 0.8));
+    const sun = new THREE.DirectionalLight(0xffffff, 1.2);
     sun.position.set(5, 10, 7);
     this.scene.add(sun);
 
     // Initial ball
     this.ball = new THREE.Mesh(
         new THREE.SphereGeometry(0.45, 32, 32),
-        new THREE.MeshStandardMaterial({ color: 0xff4500, metalness: 0.6, roughness: 0.2, transparent: true })
+        new THREE.MeshStandardMaterial({ color: 0xff4500, metalness: 0.5, roughness: 0.2, transparent: true })
     );
     this.ball.position.set(0, 8.5, 5.5);
     this.scene.add(this.ball);
@@ -99,10 +100,6 @@ export class HelixEngine {
     }
     this.ball.position.set(0, 8.5, 5.5);
     this.ballVelocity = 0;
-    if (this.camera) {
-        this.camera.position.set(0, 15, 20);
-        this.camera.lookAt(0, 5, 0);
-    }
   }
 
   private createPlatform(y: number, color: number, isWin: boolean, isFirst: boolean) {
@@ -127,39 +124,35 @@ export class HelixEngine {
     this.tower?.add(platform);
   }
 
-  private onMouseDown = (e: MouseEvent) => { this.isRotating = true; this.previousMouseX = e.clientX; };
-  private onMouseMove = (e: MouseEvent) => {
-    if (!this.isRotating || !this.tower) return;
-    this.tower.rotation.y += (e.clientX - this.previousMouseX) * 0.025;
-    this.previousMouseX = e.clientX;
-  };
-  private onMouseUp = () => { this.isRotating = false; };
-
-  private onTouchStart = (e: TouchEvent) => {
-    if (this.isPaused) return;
-    this.isRotating = true;
-    this.previousMouseX = e.touches[0].clientX;
-  };
-  private onTouchMove = (e: TouchEvent) => {
-    if (!this.isRotating || !this.tower) return;
-    this.tower.rotation.y += (e.touches[0].clientX - this.previousMouseX) * 0.025;
-    this.previousMouseX = e.touches[0].clientX;
-  };
-
   private setupInputs() {
-    window.addEventListener('mousedown', this.onMouseDown);
-    window.addEventListener('mousemove', this.onMouseMove);
-    window.addEventListener('mouseup', this.onMouseUp);
-    window.addEventListener('touchstart', this.onTouchStart, { passive: false });
-    window.addEventListener('touchmove', this.onTouchMove, { passive: false });
-    window.addEventListener('touchend', this.onMouseUp);
+    const move = (x: number) => {
+        if (!this.isRotating || !this.tower) return;
+        this.tower.rotation.y += (x - this.previousMouseX) * 0.025;
+        this.previousMouseX = x;
+    };
+    window.addEventListener('mousedown', e => { this.isRotating = true; this.previousMouseX = e.clientX; });
+    window.addEventListener('mousemove', e => move(e.clientX));
+    window.addEventListener('mouseup', () => this.isRotating = false);
+    window.addEventListener('touchstart', e => { if(this.isPaused) return; this.isRotating = true; this.previousMouseX = e.touches[0].clientX; }, { passive: false });
+    window.addEventListener('touchmove', e => move(e.touches[0].clientX), { passive: false });
+    window.addEventListener('touchend', () => this.isRotating = false);
   }
 
   private animate = () => {
     if (!this.renderer || !this.scene || !this.camera || !this.ball || !this.tower) return;
     this.animationId = requestAnimationFrame(this.animate);
+    const time = this.clock.getElapsedTime();
 
     if (this.autoRotate) this.tower.rotation.y += 0.015;
+
+    // Skin Effects
+    if (this.ball.userData.skin === 'fire') {
+        const s = 1 + Math.sin(time * 10) * 0.05;
+        this.ball.scale.set(s, s, s);
+    } else if (this.ball.userData.skin === 'glass') {
+        this.ball.rotation.y += 0.05;
+        this.ball.rotation.x += 0.02;
+    }
 
     if (!this.isPaused) {
         this.ballVelocity += this.gravity;
@@ -177,16 +170,8 @@ export class HelixEngine {
     const hits = this.raycaster.intersectObjects(this.tower.children, true);
     if (hits.length > 0 && hits[0].distance < 0.5) {
         const obj = hits[0].object;
-        if (obj.userData.isWinPlatform) {
-            this.isPaused = true;
-            this.state.onWin();
-            return;
-        }
-        if (obj.userData.isHazard) {
-            this.isPaused = true;
-            this.state.onLoss();
-            return;
-        }
+        if (obj.userData.isWinPlatform) { this.isPaused = true; this.state.onWin(); return; }
+        if (obj.userData.isHazard) { this.isPaused = true; this.state.onLoss(); return; }
         this.ballVelocity = this.jumpForce;
         if (this.lastHitPlatform !== obj.parent) {
             this.state.onScoreUpdate(10);
@@ -196,32 +181,41 @@ export class HelixEngine {
   }
 
   public setSkin(s: string) {
-    if (this.ball) {
-        const mat = this.ball.material as THREE.MeshStandardMaterial;
-        mat.opacity = 1.0;
-        mat.needsUpdate = true;
-        if (s === 'gold') mat.color.set(0xffd700);
-        else if (s === 'glass') { mat.color.set(0xffffff); mat.opacity = 0.4; }
-        else if (s === 'yellow') mat.color.set(0xffff00);
-        else if (s === 'crown') mat.color.set(0xaa00ff);
-        else mat.color.set(0xff4500);
+    if (!this.ball) return;
+    this.ball.userData.skin = s;
+    const mat = this.ball.material as THREE.MeshStandardMaterial;
+    mat.opacity = 1.0;
+    mat.emissiveIntensity = 0;
+
+    if (s === 'gold') {
+        mat.color.set(0xffd700);
+        mat.metalness = 1.0;
+        mat.roughness = 0.1;
+    } else if (s === 'glass') {
+        mat.color.set(0x00ffff);
+        mat.opacity = 0.4;
+        mat.metalness = 0.1;
+        mat.roughness = 0;
+    } else if (s === 'fire') {
+        mat.color.set(0xff4500);
+        mat.emissive.set(0xff0000);
+        mat.emissiveIntensity = 2;
+    } else if (s === 'yellow') {
+        mat.color.set(0xffff00);
+        mat.metalness = 0.5;
+    } else if (s === 'crown') {
+        mat.color.set(0xff00ff);
+        mat.emissive.set(0x5500ff);
+        mat.emissiveIntensity = 1;
     }
+    mat.needsUpdate = true;
   }
 
   public dispose() {
     if (this.animationId) cancelAnimationFrame(this.animationId);
-    window.removeEventListener('mousedown', this.onMouseDown);
-    window.removeEventListener('mousemove', this.onMouseMove);
-    window.removeEventListener('mouseup', this.onMouseUp);
-    window.removeEventListener('touchstart', this.onTouchStart);
-    window.removeEventListener('touchmove', this.onTouchMove);
-    window.removeEventListener('touchend', this.onMouseUp);
-
     if (this.renderer) {
         this.renderer.dispose();
-        if (this.renderer.domElement && this.renderer.domElement.parentNode) {
-            this.renderer.domElement.parentNode.removeChild(this.renderer.domElement);
-        }
+        if (this.renderer.domElement.parentNode) this.renderer.domElement.parentNode.removeChild(this.renderer.domElement);
     }
     this.scene = null;
     this.camera = null;

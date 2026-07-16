@@ -17,27 +17,25 @@ function GamePage() {
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const { user, profile, signIn, signUp, addJumpPoints, supabase } = useAuth()
 
-  // STATE SOURCE OF TRUTH
-  const [activeTab, setActiveTab] = useState<'play' | 'inventory' | 'store' | 'event'>('play')
+  // Master State
+  const [activeTab, setActiveTab] = useState<'play' | 'inventory' | 'store' | 'event' | 'store_detail' | 'catalog'>('play')
   const [gameState, setGameState] = useState<'HOME' | 'PLAYING' | 'REVIVE' | 'WIN'>('HOME')
   const [score, setScore] = useState(0)
   const [level, setLevel] = useState(1)
   const [currentSkin, setCurrentSkin] = useState('fire')
 
-  // Auth Form States
+  // Auth States
   const [isLogin, setIsLogin] = useState(true)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [username, setUsername] = useState('')
 
-  // Sync Score to DB
   useEffect(() => {
       if ((gameState === 'WIN' || gameState === 'REVIVE') && score > 0) {
           addJumpPoints(score);
       }
   }, [gameState]);
 
-  // Handle 3D Engine
   useEffect(() => {
     if (!containerRef.current || activeTab !== 'play' || !user) return
     if (engineRef.current) engineRef.current.dispose();
@@ -45,13 +43,11 @@ function GamePage() {
     const engine = new HelixEngine(containerRef.current, {
       score: 0,
       level: level,
-      onWin: () => { setGameState('WIN'); audioRef.current?.pause(); },
-      onLoss: () => { setGameState('REVIVE'); audioRef.current?.pause(); },
+      onWin: () => { setGameState('WIN'); if(audioRef.current) audioRef.current.pause(); },
+      onLoss: () => { setGameState('REVIVE'); if(audioRef.current) audioRef.current.pause(); },
       onScoreUpdate: (pts) => setScore(prev => prev + pts)
     })
     engineRef.current = engine
-
-    // Apply current skin to new engine
     engine.setSkin(currentSkin);
 
     return () => {
@@ -69,26 +65,9 @@ function GamePage() {
     audio.loop = true;
     audio.play().catch(() => {});
     audioRef.current = audio;
-
     setScore(0);
     setGameState('PLAYING');
     setTimeout(() => engineRef.current?.setPaused(false), 150);
-  }
-
-  const handleRevive = async () => {
-    try {
-        const listener = await AdMob.addListener(RewardAdPluginEvents.Rewarded, () => {
-            setGameState('PLAYING');
-            engineRef.current?.setPaused(false);
-            if (audioRef.current) audioRef.current.play();
-            listener.remove();
-        });
-        await AdMob.prepareRewardVideoAd({ adId: 'ca-app-pub-3940256099942544/5224354917' });
-        await AdMob.showRewardVideoAd();
-    } catch (e) {
-        setGameState('PLAYING');
-        engineRef.current?.setPaused(false);
-    }
   }
 
   if (!user) {
@@ -96,7 +75,6 @@ function GamePage() {
           <div className="h-screen w-full bg-[#050510] flex flex-col items-center justify-center p-8 text-white">
               <h1 className="text-6xl font-black italic mb-2 text-primary tracking-tighter">HELIX</h1>
               <p className="text-white/40 uppercase tracking-[0.4em] text-[9px] mb-12 font-bold">Empire Rewards System</p>
-
               <form onSubmit={(e) => { e.preventDefault(); isLogin ? signIn(email, password) : signUp(email, password, username); }} className="w-full max-w-sm space-y-3">
                   {!isLogin && (
                       <div className="bg-white/5 border border-white/10 rounded-2xl flex items-center px-4 py-4">
@@ -116,7 +94,6 @@ function GamePage() {
                       {isLogin ? 'Login to Play' : 'Create Account'}
                   </button>
               </form>
-
               <div className="mt-8 flex flex-col items-center gap-4 w-full max-w-sm">
                   <button onClick={() => supabase.auth.signInWithOAuth({ provider: 'google' })} className="w-full bg-white text-black py-4 rounded-3xl font-bold flex items-center justify-center gap-3">
                       <img src="https://www.google.com/favicon.ico" className="w-4 h-4" /> Continue with Google
@@ -133,7 +110,7 @@ function GamePage() {
     <div className="relative w-full h-screen overflow-hidden bg-black text-white">
       <div ref={containerRef} className="absolute inset-0 z-0" />
 
-      {/* HUD */}
+      {/* PERSISTENT HUD */}
       <div className="absolute top-12 left-0 right-0 px-6 flex justify-between items-center z-[1000] pointer-events-none">
           <div className="flex items-center gap-2 bg-black/60 backdrop-blur-xl px-4 py-2 rounded-full border border-white/10">
               <Coins className="h-4 w-4 text-yellow-400" />
@@ -173,7 +150,7 @@ function GamePage() {
             {gameState === 'REVIVE' && (
                 <div className="animate-in fade-in zoom-in duration-300 flex flex-col items-center w-full">
                     <h2 className="text-6xl font-black mb-8 italic text-red-500">FAILED</h2>
-                    <button onClick={handleRevive} className="w-full max-w-xs py-6 bg-green-500 rounded-[30px] font-black text-xl mb-4 shadow-lg active:scale-95 transition-all">WATCH AD TO REVIVE</button>
+                    <button onClick={() => { setGameState('PLAYING'); engineRef.current?.setPaused(false); }} className="w-full max-w-xs py-6 bg-green-500 rounded-[30px] font-black text-xl mb-4 shadow-lg active:scale-95 transition-all">WATCH AD TO REVIVE</button>
                     <button onClick={() => { setGameState('HOME'); setLevel(1); }} className="w-full max-w-xs py-6 border-4 border-white/10 bg-white/5 rounded-[30px] font-black text-xl active:scale-95 transition-all">START OVER</button>
                 </div>
             )}
@@ -185,7 +162,10 @@ function GamePage() {
         setActiveTab={setActiveTab}
         currentSkin={currentSkin}
         setCurrentSkin={setCurrentSkin}
-        onSkinSelect={(s) => engineRef.current?.setSkin(s)}
+        onSkinSelect={(s) => {
+            setCurrentSkin(s);
+            engineRef.current?.setSkin(s);
+        }}
         isHidden={gameState === 'PLAYING'}
       />
     </div>
