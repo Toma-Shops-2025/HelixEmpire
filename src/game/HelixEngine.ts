@@ -11,7 +11,7 @@ export interface GameState {
 export class HelixEngine {
   private scene: THREE.Scene | null = null;
   private camera: THREE.PerspectiveCamera | null = null;
-  public renderer: THREE.WebGLRenderer | null = null;
+  private renderer: THREE.WebGLRenderer | null = null;
   public ball: THREE.Mesh | null = null;
   private tower: THREE.Group | null = null;
   private state: GameState;
@@ -57,12 +57,11 @@ export class HelixEngine {
     while (this.container.firstChild) this.container.removeChild(this.container.firstChild);
     this.container.appendChild(this.renderer.domElement);
 
-    this.scene.add(new THREE.AmbientLight(0xffffff, 0.8));
-    const sun = new THREE.DirectionalLight(0xffffff, 1.2);
+    this.scene.add(new THREE.AmbientLight(0xffffff, 1.2));
+    const sun = new THREE.DirectionalLight(0xffffff, 1.0);
     sun.position.set(5, 10, 7);
     this.scene.add(sun);
 
-    // Initial ball
     this.ball = new THREE.Mesh(
         new THREE.SphereGeometry(0.45, 32, 32),
         new THREE.MeshStandardMaterial({ color: 0xff4500, metalness: 0.5, roughness: 0.2, transparent: true })
@@ -145,13 +144,17 @@ export class HelixEngine {
 
     if (this.autoRotate) this.tower.rotation.y += 0.015;
 
-    // Skin Effects
-    if (this.ball.userData.skin === 'fire') {
-        const s = 1 + Math.sin(time * 10) * 0.05;
+    // Shader-like Effects for Skins
+    const skin = this.ball.userData.skin;
+    if (skin === 'fire') {
+        const s = 1 + Math.sin(time * 8) * 0.08;
         this.ball.scale.set(s, s, s);
-    } else if (this.ball.userData.skin === 'glass') {
+        (this.ball.material as THREE.MeshStandardMaterial).emissiveIntensity = 1 + Math.sin(time * 5);
+    } else if (skin === 'glass') {
         this.ball.rotation.y += 0.05;
-        this.ball.rotation.x += 0.02;
+        (this.ball.material as THREE.MeshStandardMaterial).color.setHSL(Math.sin(time * 0.5), 0.8, 0.5);
+    } else if (skin === 'gold') {
+        this.ball.rotation.z += 0.02;
     }
 
     if (!this.isPaused) {
@@ -185,7 +188,7 @@ export class HelixEngine {
     this.ball.userData.skin = s;
     const mat = this.ball.material as THREE.MeshStandardMaterial;
     mat.opacity = 1.0;
-    mat.emissiveIntensity = 0;
+    mat.emissive.set(0x000000);
 
     if (s === 'gold') {
         mat.color.set(0xffd700);
@@ -193,8 +196,8 @@ export class HelixEngine {
         mat.roughness = 0.1;
     } else if (s === 'glass') {
         mat.color.set(0x00ffff);
-        mat.opacity = 0.4;
-        mat.metalness = 0.1;
+        mat.opacity = 0.5;
+        mat.metalness = 0.2;
         mat.roughness = 0;
     } else if (s === 'fire') {
         mat.color.set(0xff4500);
@@ -204,9 +207,8 @@ export class HelixEngine {
         mat.color.set(0xffff00);
         mat.metalness = 0.5;
     } else if (s === 'crown') {
-        mat.color.set(0xff00ff);
+        mat.color.set(0xaa00ff);
         mat.emissive.set(0x5500ff);
-        mat.emissiveIntensity = 1;
     }
     mat.needsUpdate = true;
   }

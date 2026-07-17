@@ -23,6 +23,7 @@ function GamePage() {
   const [score, setScore] = useState(0)
   const [level, setLevel] = useState(1)
   const [currentSkin, setCurrentSkin] = useState('fire')
+  const [levelCounter, setLevelCounter] = useState(0) // Track levels for interstitial ads
 
   // Auth States
   const [isLogin, setIsLogin] = useState(true)
@@ -32,12 +33,32 @@ function GamePage() {
   const [showPassword, setShowPassword] = useState(false)
   const [agreed, setAgreed] = useState(false)
 
+  // Initialize AdMob
   useEffect(() => {
-      if ((gameState === 'WIN' || gameState === 'REVIVE') && score > 0) {
+    if (user) {
+        AdMob.prepareRewardVideoAd({ adId: 'ca-app-pub-3940256099942544/5224354917' }).catch(() => {});
+        AdMob.prepareInterstitialAd({ adId: 'ca-app-pub-3940256099942544/1033173712' }).catch(() => {});
+    }
+  }, [user]);
+
+  // Sync Score and Check Ads
+  useEffect(() => {
+      if (gameState === 'WIN') {
+          if (score > 0) addJumpPoints(score);
+
+          // Trigger Interstitial every 3 levels
+          const newCount = levelCounter + 1;
+          setLevelCounter(newCount);
+          if (newCount % 3 === 0) {
+              AdMob.showInterstitialAd().catch(() => {});
+              AdMob.prepareInterstitialAd({ adId: 'ca-app-pub-3940256099942544/1033173712' }).catch(() => {});
+          }
+      } else if (gameState === 'REVIVE' && score > 0) {
           addJumpPoints(score);
       }
   }, [gameState]);
 
+  // Engine Lifecycle
   useEffect(() => {
     if (!containerRef.current || activeTab !== 'play' || !user) return
     if (engineRef.current) engineRef.current.dispose();
@@ -72,6 +93,23 @@ function GamePage() {
     setTimeout(() => engineRef.current?.setPaused(false), 150);
   }
 
+  const handleRevive = async () => {
+    try {
+        await AdMob.prepareRewardVideoAd({ adId: 'ca-app-pub-3940256099942544/5224354917' });
+        const listener = await AdMob.addListener(RewardAdPluginEvents.Rewarded, () => {
+            setGameState('PLAYING');
+            engineRef.current?.setPaused(false);
+            if (audioRef.current) audioRef.current.play();
+            listener.remove();
+        });
+        await AdMob.showRewardVideoAd();
+    } catch (e) {
+        // Backup if ad fails to show
+        setGameState('PLAYING');
+        engineRef.current?.setPaused(false);
+    }
+  }
+
   const handleAuth = async (e: React.FormEvent) => {
       e.preventDefault();
       if (!isLogin && !agreed) return alert("Please agree to the terms.");
@@ -81,62 +119,56 @@ function GamePage() {
       } catch (err: any) { alert(err.message); }
   }
 
-  const googleLogin = async () => {
-      await supabase.auth.signInWithOAuth({
-          provider: 'google',
-          options: { redirectTo: window.location.origin }
-      });
-  }
-
   if (!user) {
       return (
-          <div className="h-screen w-full bg-[#050510] flex flex-col items-center justify-start pt-20 px-8 text-white overflow-y-auto">
-              <h1 className="text-6xl font-black italic mb-2 text-primary tracking-tighter">HELIX</h1>
-              <p className="text-white/40 uppercase tracking-[0.4em] text-[9px] mb-12 font-bold">Empire Rewards System</p>
+          <div className="h-screen w-full bg-[#050510] flex flex-col items-center justify-center p-8 text-white overflow-y-auto">
+              <div className="w-full max-w-sm flex flex-col items-center mb-8">
+                  <h1 className="text-6xl font-black italic mb-2 text-primary tracking-tighter leading-none">HELIX</h1>
+                  <p className="text-white/40 uppercase tracking-[0.4em] text-[9px] font-bold">Empire Rewards System</p>
+              </div>
 
-              <form onSubmit={handleAuth} className="w-full max-w-sm space-y-3">
+              <form onSubmit={handleAuth} className="w-full max-w-sm space-y-3 pb-12">
                   {!isLogin && (
-                      <div className="bg-white/5 border border-white/10 rounded-2xl flex items-center px-4 py-4">
+                      <div className="bg-white/5 border border-white/10 rounded-2xl flex items-center px-4 py-4 focus-within:border-primary/50 transition-all">
                           <UserIcon className="h-5 w-5 text-white/20 mr-3" />
                           <input type="text" placeholder="Username" className="bg-transparent outline-none w-full font-bold" value={username} onChange={e => setUsername(e.target.value)} required />
                       </div>
                   )}
-                  <div className="bg-white/5 border border-white/10 rounded-2xl flex items-center px-4 py-4">
+                  <div className="bg-white/5 border border-white/10 rounded-2xl flex items-center px-4 py-4 focus-within:border-primary/50 transition-all">
                       <Mail className="h-5 w-5 text-white/20 mr-3" />
                       <input type="email" placeholder="Email" className="bg-transparent outline-none w-full font-bold" value={email} onChange={e => setEmail(e.target.value)} required />
                   </div>
-                  <div className="bg-white/5 border border-white/10 rounded-2xl flex items-center px-4 py-4">
+                  <div className="bg-white/5 border border-white/10 rounded-2xl flex items-center px-4 py-4 focus-within:border-primary/50 transition-all">
                       <Lock className="h-5 w-5 text-white/20 mr-3" />
                       <input type={showPassword ? "text" : "password"} placeholder="Password" className="bg-transparent outline-none w-full font-bold" value={password} onChange={e => setPassword(e.target.value)} required />
-                      <button type="button" onClick={() => setShowPassword(!showPassword)} className="text-white/20">
+                      <button type="button" onClick={() => setShowPassword(!showPassword)} className="text-white/20 px-2">
                           {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                       </button>
                   </div>
                   {!isLogin && (
                       <div className="flex items-center gap-3 px-2 py-2">
-                          <input type="checkbox" checked={agreed} onChange={e => setAgreed(e.target.checked)} />
-                          <span className="text-[10px] text-white/40 font-bold">I agree to the Terms & Privacy</span>
+                          <input type="checkbox" checked={agreed} onChange={e => setAgreed(e.target.checked)} className="accent-primary" />
+                          <span className="text-[10px] text-white/40 font-bold uppercase tracking-tighter">I am 18+ and agree to the Terms</span>
                       </div>
                   )}
                   <button type="submit" className="w-full bg-primary py-5 rounded-3xl font-black uppercase tracking-widest shadow-glow active:scale-95 transition-all mt-4">
                       {isLogin ? 'Login' : 'Create Account'}
                   </button>
+                  <div className="flex flex-col items-center gap-4 mt-6">
+                      <button type="button" onClick={() => supabase.auth.signInWithOAuth({ provider: 'google' })} className="w-full bg-white text-black py-4 rounded-3xl font-bold flex items-center justify-center gap-3 active:scale-95 transition-transform">
+                          <img src="https://www.google.com/favicon.ico" className="w-4 h-4" /> Continue with Google
+                      </button>
+                      <button type="button" onClick={() => setIsLogin(!isLogin)} className="text-white/40 font-bold text-sm uppercase tracking-tighter mt-2">
+                          {isLogin ? "Need an account? Sign Up" : "Back to Login"}
+                      </button>
+                  </div>
               </form>
-
-              <div className="mt-8 mb-12 flex flex-col items-center gap-4 w-full max-w-sm">
-                  <button onClick={googleLogin} className="w-full bg-white text-black py-4 rounded-3xl font-bold flex items-center justify-center gap-3 active:scale-95 transition-transform">
-                      <img src="https://www.google.com/favicon.ico" className="w-4 h-4" /> Continue with Google
-                  </button>
-                  <button onClick={() => setIsLogin(!isLogin)} className="text-white/40 font-bold text-sm uppercase tracking-tighter mt-4">
-                      {isLogin ? "Need an account? Sign Up" : "Back to Login"}
-                  </button>
-              </div>
           </div>
       )
   }
 
   return (
-    <div className="relative w-full h-screen overflow-hidden bg-black text-white">
+    <div className="relative w-full h-screen overflow-hidden bg-black text-white font-sans">
       <div ref={containerRef} className="absolute inset-0 z-0" />
 
       {/* PERSISTENT HUD */}
@@ -152,9 +184,9 @@ function GamePage() {
       </div>
 
       {gameState === 'PLAYING' && (
-        <div className="absolute top-24 left-1/2 -translate-x-1/2 z-10 text-center pointer-events-none">
+        <div className="absolute top-24 left-1/2 -translate-x-1/2 z-10 text-center pointer-events-none animate-in slide-in-from-top duration-300">
             <div className="text-[10px] opacity-50 uppercase font-black tracking-widest">Stage {level}</div>
-            <div className="text-7xl font-black italic">{score}</div>
+            <div className="text-7xl font-black italic drop-shadow-glow">{score}</div>
         </div>
       )}
 
@@ -165,8 +197,8 @@ function GamePage() {
                     <h1 className="text-7xl font-black italic mb-12 leading-none tracking-tighter text-white">HELIX<br/>EMPIRE</h1>
                     <button onClick={startGame} className="w-64 h-24 bg-[#FF4500] rounded-full text-4xl font-black italic shadow-[0_0_50px_rgba(255,69,0,0.4)] active:scale-95 transition-all">PLAY</button>
                     <div className="mt-12 flex gap-8 text-[12px] font-black uppercase tracking-widest opacity-40 pointer-events-auto">
-                        <span className="cursor-pointer" onClick={() => Browser.open({url: 'https://viralsnap.online/privacy'})}>Privacy</span>
-                        <span className="cursor-pointer" onClick={() => Browser.open({url: 'https://viralsnap.online/terms'})}>Terms</span>
+                        <span className="cursor-pointer hover:text-white" onClick={() => Browser.open({url: 'https://viralsnap.online/privacy'})}>Privacy</span>
+                        <span className="cursor-pointer hover:text-white" onClick={() => Browser.open({url: 'https://viralsnap.online/terms'})}>Terms</span>
                     </div>
                 </div>
             )}
@@ -179,7 +211,7 @@ function GamePage() {
             {gameState === 'REVIVE' && (
                 <div className="animate-in fade-in zoom-in duration-300 flex flex-col items-center w-full">
                     <h2 className="text-6xl font-black mb-8 italic text-red-500">FAILED</h2>
-                    <button onClick={() => { setGameState('PLAYING'); engineRef.current?.setPaused(false); }} className="w-full max-w-xs py-6 bg-green-500 rounded-[30px] font-black text-xl mb-4 shadow-lg active:scale-95 transition-all">WATCH AD TO REVIVE</button>
+                    <button onClick={handleRevive} className="w-full max-w-xs py-6 bg-green-500 rounded-[30px] font-black text-xl mb-4 shadow-lg active:scale-95 transition-all">WATCH AD TO REVIVE</button>
                     <button onClick={() => { setGameState('HOME'); setLevel(1); }} className="w-full max-w-xs py-6 border-4 border-white/10 bg-white/5 rounded-[30px] font-black text-xl active:scale-95 transition-all">START OVER</button>
                 </div>
             )}
