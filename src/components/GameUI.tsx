@@ -87,31 +87,49 @@ export function GameUI({ activeTab, setActiveTab, currentSkin, onSkinSelect, isH
 
         {/* SHOP: EMPIRE PACK DETAIL */}
         {activeTab === 'store_pack' && (
-            <div className="w-full max-w-md space-y-8 text-center">
-                <button onClick={() => setActiveTab('store')} className="flex items-center gap-2 text-white/40 font-bold uppercase text-[10px] mb-8"><ArrowLeft className="h-4 w-4" /> Back to Shop</button>
-                <div className="bg-white/5 border-4 border-primary/20 p-8 rounded-[50px] space-y-6">
-                    <Smartphone className="h-24 w-24 text-primary mx-auto" />
-                    <h3 className="text-3xl font-black italic uppercase">Empire Bundle</h3>
-                    <ul className="text-left text-sm text-white/60 space-y-2 list-disc list-inside">
+            <div className="w-full max-w-md space-y-8 text-center animate-in zoom-in duration-300">
+                <button onClick={() => setActiveTab('store')} className="flex items-center gap-2 text-white/40 font-bold uppercase text-[10px] mb-8 active:scale-90 transition-transform"><ArrowLeft className="h-4 w-4" /> Back to Shop</button>
+                <div className="bg-white/5 border-4 border-primary/20 p-8 rounded-[50px] space-y-6 relative overflow-hidden group">
+                    <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <Smartphone className="h-24 w-24 text-primary mx-auto relative z-10" />
+                    <h3 className="text-3xl font-black italic uppercase relative z-10">Empire Bundle</h3>
+                    <ul className="text-left text-sm text-white/60 space-y-2 list-disc list-inside relative z-10">
                         <li>Exclusive "Grand Crown" Skin</li>
                         <li>Permanent Ad Removal</li>
                         <li>500 Instant Bonus Coins</li>
                         <li>Priority Support</li>
                     </ul>
-                    <button onClick={() => purchase(PRODUCT_EMPIRE_PACK)} className="w-full bg-primary py-6 rounded-3xl font-black text-xl shadow-glow active:scale-95 transition-all">GET IT NOW</button>
+                    <button
+                        onClick={() => {
+                            console.log("Purchasing Empire Pack...");
+                            purchase(PRODUCT_EMPIRE_PACK);
+                        }}
+                        className="w-full bg-primary py-6 rounded-3xl font-black text-xl shadow-glow active:scale-95 transition-all relative z-10"
+                    >
+                        GET IT NOW
+                    </button>
                 </div>
             </div>
         )}
 
         {/* SHOP: COINS DETAIL */}
         {activeTab === 'store_coins' && (
-            <div className="w-full max-w-md space-y-8 text-center">
-                <button onClick={() => setActiveTab('store')} className="flex items-center gap-2 text-white/40 font-bold uppercase text-[10px] mb-8"><ArrowLeft className="h-4 w-4" /> Back to Shop</button>
-                <div className="bg-white/5 border-4 border-yellow-500/20 p-8 rounded-[50px] space-y-6">
-                    <ShoppingCart className="h-24 w-24 text-yellow-400 mx-auto" />
-                    <h3 className="text-3xl font-black italic uppercase">1,000 Coins</h3>
-                    <p className="text-sm text-white/60">Unlock legendary items and skip tough levels with this massive coin boost!</p>
-                    <button onClick={() => purchase(PRODUCT_COINS_1000)} className="w-full bg-yellow-500 text-black py-6 rounded-3xl font-black text-xl active:scale-95 transition-all">$4.99 - BUY</button>
+            <div className="w-full max-w-md space-y-8 text-center animate-in zoom-in duration-300">
+                <button onClick={() => setActiveTab('store')} className="flex items-center gap-2 text-white/40 font-bold uppercase text-[10px] mb-8 active:scale-90 transition-transform"><ArrowLeft className="h-4 w-4" /> Back to Shop</button>
+                <div className="bg-white/5 border-4 border-yellow-500/20 p-8 rounded-[50px] space-y-6 relative overflow-hidden group">
+                    <div className="absolute inset-0 bg-yellow-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <ShoppingCart className="h-24 w-24 text-yellow-400 mx-auto relative z-10" />
+                    <h3 className="text-3xl font-black italic uppercase relative z-10">1,000 Coins</h3>
+                    <p className="text-sm text-white/60 relative z-10">Unlock legendary items and skip tough levels with this massive coin boost!</p>
+                    <button
+                        onClick={() => {
+                            console.log("Purchasing 1000 Coins...");
+                            purchase(PRODUCT_COINS_1000);
+                        }}
+                        className="w-full bg-yellow-500 text-black py-6 rounded-3xl font-black text-xl active:scale-95 transition-all relative z-10"
+                    >
+                        $4.99 - BUY
+                    </button>
                 </div>
             </div>
         )}

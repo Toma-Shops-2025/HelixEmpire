@@ -144,17 +144,33 @@ export class HelixEngine {
 
     if (this.autoRotate) this.tower.rotation.y += 0.015;
 
-    // Shader-like Effects for Skins
+    // Enhanced Shader-like Effects for all Skins
     const skin = this.ball.userData.skin;
-    if (skin === 'fire') {
-        const s = 1 + Math.sin(time * 8) * 0.08;
+    const mat = this.ball.material as THREE.MeshStandardMaterial;
+
+    if (skin === 'fire') { // Viral Spark
+        const s = 1 + Math.sin(time * 10) * 0.12;
         this.ball.scale.set(s, s, s);
-        (this.ball.material as THREE.MeshStandardMaterial).emissiveIntensity = 1 + Math.sin(time * 5);
-    } else if (skin === 'glass') {
+        mat.emissiveIntensity = 1.5 + Math.sin(time * 8);
         this.ball.rotation.y += 0.05;
-        (this.ball.material as THREE.MeshStandardMaterial).color.setHSL(Math.sin(time * 0.5), 0.8, 0.5);
-    } else if (skin === 'gold') {
-        this.ball.rotation.z += 0.02;
+    } else if (skin === 'gold') { // Liquid Gold
+        this.ball.rotation.y += 0.03;
+        this.ball.rotation.z += 0.01;
+        mat.metalness = 0.8 + Math.sin(time * 2) * 0.2;
+    } else if (skin === 'glass') { // Neon Phantom
+        this.ball.rotation.y += 0.08;
+        mat.color.setHSL((time * 0.2) % 1, 0.8, 0.5);
+        const s = 1 + Math.sin(time * 4) * 0.05;
+        this.ball.scale.set(s, s, s);
+    } else if (skin === 'yellow') { // TomaBox
+        this.ball.rotation.x += 0.04;
+        this.ball.rotation.y += 0.04;
+        this.ball.position.x = Math.sin(time * 5) * 0.2;
+    } else if (skin === 'crown') { // Grand Crown
+        mat.emissiveIntensity = 2 + Math.sin(time * 12) * 1.5;
+        this.ball.rotation.y += 0.1;
+        const bounce = Math.abs(Math.sin(time * 10)) * 0.2;
+        this.ball.scale.set(1 + bounce, 1 + bounce, 1 + bounce);
     }
 
     if (!this.isPaused) {
