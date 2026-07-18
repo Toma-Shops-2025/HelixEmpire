@@ -48,7 +48,10 @@ function GamePage() {
 
           const newCount = levelCounter + 1;
           setLevelCounter(newCount);
+          console.log(`Level complete. Counter: ${newCount}`);
+
           if (newCount % 3 === 0) {
+              console.log("Triggering interstitial ad...");
               AdMob.showInterstitialAd().catch(() => {});
               AdMob.prepareInterstitialAd({ adId: 'ca-app-pub-3940256099942544/1033173712' }).catch(() => {});
           }
@@ -136,7 +139,7 @@ function GamePage() {
                   </div>
                   <div className="bg-white/5 border border-white/10 rounded-2xl flex items-center px-4 py-4">
                       <Lock className="h-5 w-5 text-white/20 mr-3" />
-                      <input type={showPassword ? "text" : "password"} placeholder="Password" className="bg-transparent outline-none w-full font-bold" value={password} onChange={e => setPassword(e.target.value)} required />
+                      <input type={showPassword ? "text" : "password"} placeholder="Password" name="password" autoComplete="current-password" className="bg-transparent outline-none w-full font-bold" value={password} onChange={e => setPassword(e.target.value)} required />
                       <button type="button" onClick={() => setShowPassword(!showPassword)} className="text-white/20 px-2">
                           {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                       </button>

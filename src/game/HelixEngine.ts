@@ -144,33 +144,35 @@ export class HelixEngine {
 
     if (this.autoRotate) this.tower.rotation.y += 0.015;
 
-    // Enhanced Shader-like Effects for all Skins
+    // Advanced Animations for all Skins
     const skin = this.ball.userData.skin;
     const mat = this.ball.material as THREE.MeshStandardMaterial;
 
     if (skin === 'fire') { // Viral Spark
-        const s = 1 + Math.sin(time * 10) * 0.12;
+        const s = 1 + Math.sin(time * 12) * 0.15;
         this.ball.scale.set(s, s, s);
-        mat.emissiveIntensity = 1.5 + Math.sin(time * 8);
-        this.ball.rotation.y += 0.05;
-    } else if (skin === 'gold') { // Liquid Gold
-        this.ball.rotation.y += 0.03;
-        this.ball.rotation.z += 0.01;
-        mat.metalness = 0.8 + Math.sin(time * 2) * 0.2;
-    } else if (skin === 'glass') { // Neon Phantom
-        this.ball.rotation.y += 0.08;
-        mat.color.setHSL((time * 0.2) % 1, 0.8, 0.5);
-        const s = 1 + Math.sin(time * 4) * 0.05;
-        this.ball.scale.set(s, s, s);
-    } else if (skin === 'yellow') { // TomaBox
-        this.ball.rotation.x += 0.04;
-        this.ball.rotation.y += 0.04;
-        this.ball.position.x = Math.sin(time * 5) * 0.2;
-    } else if (skin === 'crown') { // Grand Crown
-        mat.emissiveIntensity = 2 + Math.sin(time * 12) * 1.5;
+        mat.emissiveIntensity = 2 + Math.sin(time * 10);
         this.ball.rotation.y += 0.1;
-        const bounce = Math.abs(Math.sin(time * 10)) * 0.2;
-        this.ball.scale.set(1 + bounce, 1 + bounce, 1 + bounce);
+    } else if (skin === 'gold') { // Liquid Gold
+        this.ball.rotation.y += 0.02;
+        this.ball.rotation.z += 0.02;
+        mat.metalness = 0.9 + Math.sin(time * 3) * 0.1;
+        const pulse = 1 + Math.sin(time * 2) * 0.05;
+        this.ball.scale.set(pulse, pulse, pulse);
+    } else if (skin === 'glass') { // Neon Phantom
+        this.ball.rotation.y += 0.06;
+        mat.color.setHSL((time * 0.15) % 1, 0.9, 0.6);
+        mat.opacity = 0.4 + Math.sin(time * 5) * 0.2;
+    } else if (skin === 'yellow') { // TomaBox
+        const wobble = Math.sin(time * 15) * 0.1;
+        this.ball.rotation.x += 0.05 + wobble;
+        this.ball.rotation.z += 0.05 + wobble;
+        this.ball.position.x = Math.sin(time * 6) * 0.3;
+    } else if (skin === 'crown') { // Grand Crown
+        mat.emissiveIntensity = 3 + Math.sin(time * 15) * 2;
+        this.ball.rotation.y += 0.15;
+        const heroBounce = Math.abs(Math.sin(time * 8)) * 0.25;
+        this.ball.scale.set(1.1 + heroBounce, 1.1 + heroBounce, 1.1 + heroBounce);
     }
 
     if (!this.isPaused) {
@@ -209,22 +211,24 @@ export class HelixEngine {
     if (s === 'gold') {
         mat.color.set(0xffd700);
         mat.metalness = 1.0;
-        mat.roughness = 0.1;
+        mat.roughness = 0.05;
     } else if (s === 'glass') {
         mat.color.set(0x00ffff);
         mat.opacity = 0.5;
-        mat.metalness = 0.2;
+        mat.metalness = 0.1;
         mat.roughness = 0;
     } else if (s === 'fire') {
         mat.color.set(0xff4500);
         mat.emissive.set(0xff0000);
-        mat.emissiveIntensity = 2;
+        mat.emissiveIntensity = 2.5;
     } else if (s === 'yellow') {
         mat.color.set(0xffff00);
-        mat.metalness = 0.5;
+        mat.metalness = 0.6;
+        mat.roughness = 0.1;
     } else if (s === 'crown') {
         mat.color.set(0xaa00ff);
-        mat.emissive.set(0x5500ff);
+        mat.emissive.set(0xff00ff);
+        mat.emissiveIntensity = 3;
     }
     mat.needsUpdate = true;
   }
