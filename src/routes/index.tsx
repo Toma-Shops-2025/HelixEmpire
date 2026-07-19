@@ -24,6 +24,7 @@ function GamePage() {
   const [level, setLevel] = useState(1)
   const [currentSkin, setCurrentSkin] = useState('fire')
   const [levelCounter, setLevelCounter] = useState(0)
+  const [isAdLoading, setIsAdLoading] = useState(false)
 
   // Auth States
   const [isLogin, setIsLogin] = useState(true)
@@ -36,25 +37,45 @@ function GamePage() {
   // Pre-load Ads
   useEffect(() => {
     if (user) {
+        AdMob.initialize().catch(() => {});
         AdMob.prepareRewardVideoAd({ adId: 'ca-app-pub-3940256099942544/5224354917' }).catch(() => {});
         AdMob.prepareInterstitialAd({ adId: 'ca-app-pub-3940256099942544/1033173712' }).catch(() => {});
     }
   }, [user]);
+
+  // Global Ad Listeners
+  useEffect(() => {
+    const rListener = AdMob.addListener(RewardAdPluginEvents.Rewarded, () => {
+        console.log("Ad Reward Granted!");
+        setGameState('PLAYING');
+        engineRef.current?.setPaused(false);
+        if (audioRef.current) audioRef.current.play();
+    });
+
+    return () => {
+        rListener.remove();
+    };
+  }, []);
 
   // Sync Score and Interstitial Ads
   useEffect(() => {
       if (gameState === 'WIN') {
           if (score > 0) addJumpPoints(score);
 
-          const newCount = levelCounter + 1;
-          setLevelCounter(newCount);
-          console.log(`Level complete. Counter: ${newCount}`);
+          setLevelCounter(prev => {
+              const newCount = prev + 1;
+              console.log(`Level complete. Total wins this session: ${newCount}`);
 
-          if (newCount % 3 === 0) {
-              console.log("Triggering interstitial ad...");
-              AdMob.showInterstitialAd().catch(() => {});
-              AdMob.prepareInterstitialAd({ adId: 'ca-app-pub-3940256099942544/1033173712' }).catch(() => {});
-          }
+              if (newCount % 3 === 0) {
+                  console.log("Triggering interstitial ad (Every 3 levels)...");
+                  AdMob.showInterstitialAd()
+                    .then(() => {
+                        AdMob.prepareInterstitialAd({ adId: 'ca-app-pub-3940256099942544/1033173712' }).catch(() => {});
+                    })
+                    .catch((e) => console.log("Ad failed to show", e));
+              }
+              return newCount;
+          });
       } else if (gameState === 'REVIVE' && score > 0) {
           addJumpPoints(score);
       }
@@ -96,18 +117,19 @@ function GamePage() {
   }
 
   const handleRevive = async () => {
+    if (isAdLoading) return;
+    setIsAdLoading(true);
     try {
+        console.log("Preparing reward ad...");
         await AdMob.prepareRewardVideoAd({ adId: 'ca-app-pub-3940256099942544/5224354917' });
-        const listener = await AdMob.addListener(RewardAdPluginEvents.Rewarded, () => {
-            setGameState('PLAYING');
-            engineRef.current?.setPaused(false);
-            if (audioRef.current) audioRef.current.play();
-            listener.remove();
-        });
         await AdMob.showRewardVideoAd();
     } catch (e) {
+        console.error("Reward Ad Error:", e);
+        // Fallback revive if ad fails
         setGameState('PLAYING');
         engineRef.current?.setPaused(false);
+    } finally {
+        setIsAdLoading(false);
     }
   }
 
@@ -210,7 +232,9 @@ function GamePage() {
             {gameState === 'REVIVE' && (
                 <div className="animate-in fade-in zoom-in duration-300 flex flex-col items-center w-full">
                     <h2 className="text-6xl font-black mb-8 italic text-red-500">FAILED</h2>
-                    <button onClick={handleRevive} className="w-full max-w-xs py-6 bg-green-500 rounded-[30px] font-black text-xl mb-4 shadow-lg active:scale-95 transition-all">WATCH AD TO REVIVE</button>
+                    <button onClick={handleRevive} disabled={isAdLoading} className="w-full max-w-xs py-6 bg-green-500 rounded-[30px] font-black text-xl mb-4 shadow-lg active:scale-95 transition-all disabled:opacity-50">
+                        {isAdLoading ? "LOADING AD..." : "WATCH AD TO REVIVE"}
+                    </button>
                     <button onClick={() => { setGameState('HOME'); setLevel(1); }} className="w-full max-w-xs py-6 border-4 border-white/10 bg-white/5 rounded-[30px] font-black text-xl active:scale-95 transition-all">START OVER</button>
                 </div>
             )}

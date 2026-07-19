@@ -109,12 +109,22 @@ export class HelixEngine {
     const segments = 12;
     const gapStart = Math.floor(Math.random() * segments);
 
+    // Determine shape based on level
+    // Level 1-5: Circle (32)
+    // Level 6-10: Octagon (8)
+    // Level 11-15: Hexagon (6)
+    // Level 16+: Square (4)
+    let radialSegments = 32;
+    if (this.state.level > 15) radialSegments = 4;
+    else if (this.state.level > 10) radialSegments = 6;
+    else if (this.state.level > 5) radialSegments = 8;
+
     for (let i = 0; i < segments; i++) {
       if (!isWin && (i === gapStart || i === (gapStart + 1) % segments)) continue;
 
       const isHazard = !isWin && !isFirst && Math.random() > 0.95;
       const arc = (1 / segments) * Math.PI * 2;
-      const geo = new THREE.CylinderGeometry(6, 6, 0.8, 32, 1, false, (i / segments) * Math.PI * 2, arc);
+      const geo = new THREE.CylinderGeometry(6, 6, 0.8, radialSegments, 1, false, (i / segments) * Math.PI * 2, arc);
       const mat = new THREE.MeshStandardMaterial({ color: isWin ? 0xffaa00 : (isHazard ? 0xff0000 : color) });
       const segment = new THREE.Mesh(geo, mat);
       segment.userData = { isHazard, isWinPlatform: isWin, isPlatform: true };

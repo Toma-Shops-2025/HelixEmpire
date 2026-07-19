@@ -191,8 +191,8 @@ export function GameUI({ activeTab, setActiveTab, currentSkin, onSkinSelect, isH
         isHidden && activeTab === 'play' ? "translate-y-full" : "translate-y-0"
       )}>
         <NavButton icon={Box} label="Skins" active={activeTab === 'inventory'} onClick={() => setActiveTab('inventory')} />
-        <NavButton icon={ShoppingBag} label="Shop" active={activeTab === 'store'} onClick={() => setActiveTab('store')} />
-        <NavButton icon={Award} label="Win" active={activeTab === 'event'} onClick={() => setActiveTab('event')} />
+        <NavButton icon={ShoppingBag} label="Shop" active={activeTab === 'store' || activeTab === 'store_pack' || activeTab === 'store_coins'} onClick={() => setActiveTab('store')} />
+        <NavButton icon={Award} label="Win" active={activeTab === 'event' || activeTab === 'catalog'} onClick={() => setActiveTab('event')} />
         {activeTab !== 'play' && (
             <button onClick={() => setActiveTab('play')} className="bg-primary p-4 rounded-full shadow-glow active:scale-90 transition-transform">
                 <span className="font-black text-xs uppercase italic px-4 text-white">Exit</span>
