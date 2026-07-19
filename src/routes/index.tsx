@@ -43,17 +43,36 @@ function GamePage() {
     }
   }, [user]);
 
+  const handleReviveSuccess = () => {
+    console.log("Ad Reward Granted!");
+    setGameState('PLAYING');
+    setIsAdLoading(false);
+    if (engineRef.current) {
+        engineRef.current.setPaused(false);
+    }
+    if (audioRef.current) {
+        audioRef.current.play().catch(() => {});
+    }
+  };
+
   // Global Ad Listeners
   useEffect(() => {
     const rListener = AdMob.addListener(RewardAdPluginEvents.Rewarded, () => {
-        console.log("Ad Reward Granted!");
-        setGameState('PLAYING');
-        engineRef.current?.setPaused(false);
-        if (audioRef.current) audioRef.current.play();
+        handleReviveSuccess();
+    });
+
+    const failedListener = AdMob.addListener(RewardAdPluginEvents.FailedToLoad, () => {
+        setIsAdLoading(false);
+    });
+
+    const dismissedListener = AdMob.addListener(RewardAdPluginEvents.Dismissed, () => {
+        setIsAdLoading(false);
     });
 
     return () => {
         rListener.remove();
+        failedListener.remove();
+        dismissedListener.remove();
     };
   }, []);
 
@@ -120,16 +139,14 @@ function GamePage() {
     if (isAdLoading) return;
     setIsAdLoading(true);
     try {
-        console.log("Preparing reward ad...");
+        console.log("Showing reward ad...");
+        // Ensure ad is prepared first
         await AdMob.prepareRewardVideoAd({ adId: 'ca-app-pub-3940256099942544/5224354917' });
         await AdMob.showRewardVideoAd();
     } catch (e) {
         console.error("Reward Ad Error:", e);
-        // Fallback revive if ad fails
-        setGameState('PLAYING');
-        engineRef.current?.setPaused(false);
-    } finally {
-        setIsAdLoading(false);
+        // Fallback: If ad fails, still revive the player so they aren't stuck
+        handleReviveSuccess();
     }
   }
 
