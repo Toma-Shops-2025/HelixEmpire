@@ -5,7 +5,8 @@ import { GameUI } from '@/components/GameUI'
 import { useAuth } from '@/hooks/use-auth'
 import { AdMob, RewardAdPluginEvents } from '@capacitor-community/admob'
 import { Browser } from '@capacitor/browser'
-import { Coins, Zap, Mail, Lock, User as UserIcon, Eye, EyeOff } from 'lucide-react'
+import { Capacitor } from '@capacitor/core'
+import { Coins, Zap, Mail, Lock, User as UserIcon, Eye, EyeOff, Loader2 } from 'lucide-react'
 
 export const Route = createFileRoute('/')({
   component: GamePage,
@@ -15,10 +16,10 @@ function GamePage() {
   const containerRef = useRef<HTMLDivElement>(null)
   const engineRef = useRef<HelixEngine | null>(null)
   const audioRef = useRef<HTMLAudioElement | null>(null)
-  const { user, profile, signIn, signUp, addJumpPoints, supabase } = useAuth()
+  const { user, profile, signIn, signUp, addJumpPoints, addViralCoins, supabase, loading } = useAuth()
 
   // Master State
-  const [activeTab, setActiveTab] = useState<'play' | 'inventory' | 'store' | 'event' | 'store_pack' | 'store_coins' | 'catalog'>('play')
+  const [activeTab, setActiveTab] = useState<'play' | 'inventory' | 'store' | 'event' | 'store_pack' | 'store_coins' | 'catalog' | 'how_to_play' | 'faq'>('play')
   const [gameState, setGameState] = useState<'HOME' | 'PLAYING' | 'REVIVE' | 'WIN'>('HOME')
   const [score, setScore] = useState(0)
   const [level, setLevel] = useState(1)
@@ -36,7 +37,7 @@ function GamePage() {
 
   // Pre-load Ads
   useEffect(() => {
-    if (user) {
+    if (user && Capacitor.isNativePlatform()) {
         AdMob.initialize().catch(() => {});
         AdMob.prepareRewardVideoAd({ adId: 'ca-app-pub-3940256099942544/5224354917' }).catch(() => {});
         AdMob.prepareInterstitialAd({ adId: 'ca-app-pub-3940256099942544/1033173712' }).catch(() => {});
@@ -57,6 +58,8 @@ function GamePage() {
 
   // Global Ad Listeners
   useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+
     const rListener = AdMob.addListener(RewardAdPluginEvents.Rewarded, () => {
         handleReviveSuccess();
     });
@@ -101,7 +104,7 @@ function GamePage() {
               const newCount = prev + 1;
               console.log(`Level complete. Total wins this session: ${newCount}`);
 
-              if (newCount % 3 === 0) {
+              if (newCount % 3 === 0 && Capacitor.isNativePlatform()) {
                   console.log("Triggering interstitial ad (Every 3 levels)...");
                   AdMob.showInterstitialAd()
                     .then(() => {
@@ -155,6 +158,12 @@ function GamePage() {
 
   const handleRevive = async () => {
     if (isAdLoading) return;
+
+    if (!Capacitor.isNativePlatform()) {
+        handleReviveSuccess();
+        return;
+    }
+
     setIsAdLoading(true);
     try {
         console.log("Showing reward ad...");
@@ -175,6 +184,14 @@ function GamePage() {
           if (isLogin) await signIn(email, password);
           else await signUp(email, password, username);
       } catch (err: any) { alert(err.message); }
+  }
+
+  if (loading) {
+      return (
+          <div className="h-screen w-full bg-[#050510] flex items-center justify-center text-white">
+              <Loader2 className="animate-spin text-primary h-12 w-12" />
+          </div>
+      )
   }
 
   if (!user) {
