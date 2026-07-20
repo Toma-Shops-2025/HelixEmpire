@@ -18,7 +18,14 @@ export function useBilling(addViralCoins: (n: number) => void) {
     ]);
 
     store.when().approved((tx: any) => {
-      if (tx.productId === PRODUCT_COINS_1000) addViralCoins(1000);
+      console.log("Transaction Approved:", tx.productId);
+      if (tx.productId === PRODUCT_COINS_1000) {
+          addViralCoins(1000);
+          toast.success("1,000 Coins Added!");
+      } else if (tx.productId === PRODUCT_EMPIRE_PACK) {
+          addViralCoins(500);
+          toast.success("Empire Pack Activated!");
+      }
       tx.verify();
       tx.finish();
     });

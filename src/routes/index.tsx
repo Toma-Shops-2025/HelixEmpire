@@ -69,17 +69,33 @@ function GamePage() {
         setIsAdLoading(false);
     });
 
+    // Handle App Resume (Coming back to the game)
+    const handleVisibilityChange = () => {
+        if (document.visibilityState === 'visible' && activeTab === 'play' && gameState === 'PLAYING') {
+             // Restart engine if it got stuck
+             if (engineRef.current) {
+                 engineRef.current.setPaused(false);
+             }
+        }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
     return () => {
         rListener.remove();
         failedListener.remove();
         dismissedListener.remove();
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, []);
+  }, [activeTab, gameState]);
 
   // Sync Score and Interstitial Ads
   useEffect(() => {
       if (gameState === 'WIN') {
-          if (score > 0) addJumpPoints(score);
+          if (score > 0) {
+              addJumpPoints(score);
+              // Award Viral Coins on win (e.g. 50 coins per level)
+              addViralCoins(50);
+          }
 
           setLevelCounter(prev => {
               const newCount = prev + 1;
@@ -126,7 +142,9 @@ function GamePage() {
         audioRef.current.pause();
         audioRef.current.currentTime = 0;
     }
-    const audio = new Audio(`music/tier${((level-1) % 15) + 1}.MP3`);
+    // Shuffle: Pick a random track instead of level-based
+    const randomTrack = Math.floor(Math.random() * 15) + 1;
+    const audio = new Audio(`music/tier${randomTrack}.MP3`);
     audio.loop = true;
     audio.play().catch(() => {});
     audioRef.current = audio;

@@ -109,15 +109,12 @@ export class HelixEngine {
     const segments = 12;
     const gapStart = Math.floor(Math.random() * segments);
 
-    // Determine shape based on level
-    // Level 1-5: Circle (32)
-    // Level 6-10: Octagon (8)
-    // Level 11-15: Hexagon (6)
-    // Level 16+: Square (4)
+    // More aggressive shape changes starting earlier
     let radialSegments = 32;
-    if (this.state.level > 15) radialSegments = 4;
-    else if (this.state.level > 10) radialSegments = 6;
-    else if (this.state.level > 5) radialSegments = 8;
+    if (this.state.level >= 15) radialSegments = 4; // Square
+    else if (this.state.level >= 10) radialSegments = 6; // Hexagon
+    else if (this.state.level >= 5) radialSegments = 8; // Octagon
+    else if (this.state.level >= 3) radialSegments = 12; // Dodecagon
 
     for (let i = 0; i < segments; i++) {
       if (!isWin && (i === gapStart || i === (gapStart + 1) % segments)) continue;
@@ -139,10 +136,17 @@ export class HelixEngine {
         this.tower.rotation.y += (x - this.previousMouseX) * 0.025;
         this.previousMouseX = x;
     };
-    window.addEventListener('mousedown', e => { this.isRotating = true; this.previousMouseX = e.clientX; });
+
+    // Support Mouse and Touch
+    this.container.addEventListener('mousedown', e => { this.isRotating = true; this.previousMouseX = e.clientX; });
     window.addEventListener('mousemove', e => move(e.clientX));
     window.addEventListener('mouseup', () => this.isRotating = false);
-    window.addEventListener('touchstart', e => { if(this.isPaused) return; this.isRotating = true; this.previousMouseX = e.touches[0].clientX; }, { passive: false });
+
+    this.container.addEventListener('touchstart', e => {
+        if(this.isPaused) return;
+        this.isRotating = true;
+        this.previousMouseX = e.touches[0].clientX;
+    }, { passive: false });
     window.addEventListener('touchmove', e => move(e.touches[0].clientX), { passive: false });
     window.addEventListener('touchend', () => this.isRotating = false);
   }
@@ -187,6 +191,9 @@ export class HelixEngine {
 
     if (!this.isPaused) {
         this.ballVelocity += this.gravity;
+        // Cap downward velocity to prevent clipping
+        if (this.ballVelocity < -0.4) this.ballVelocity = -0.4;
+
         this.ball.position.y += this.ballVelocity;
         this.camera.position.y = this.ball.position.y + 8;
         this.camera.lookAt(0, this.ball.position.y, 0);

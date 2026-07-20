@@ -33,7 +33,7 @@ const REWARDS = [
 
 export function GameUI({ activeTab, setActiveTab, currentSkin, onSkinSelect, isHidden }) {
   const { user, signOut, supabase, addViralCoins, profile } = useAuth();
-  const { purchase } = useBilling(addViralCoins);
+  const { purchase, isReady: billingReady } = useBilling(addViralCoins);
   const [leaderboard, setLeaderboard] = useState([]);
 
   const fetchLeaderboard = async () => {
@@ -146,6 +146,13 @@ export function GameUI({ activeTab, setActiveTab, currentSkin, onSkinSelect, isH
                 </div>
                 <button onClick={() => setActiveTab('catalog')} className="w-full bg-white text-green-900 py-5 rounded-3xl font-black mt-6 active:scale-95 transition-all shadow-lg">BROWSE CATALOG</button>
             </div>
+
+            {/* Help & FAQ Buttons */}
+            <div className="grid grid-cols-2 gap-4">
+                <button onClick={() => setActiveTab('how_to_play')} className="bg-white/5 border border-white/10 py-4 rounded-2xl font-black uppercase text-[10px] active:scale-95 transition-all">How to Play</button>
+                <button onClick={() => setActiveTab('faq')} className="bg-white/5 border border-white/10 py-4 rounded-2xl font-black uppercase text-[10px] active:scale-95 transition-all">F.A.Q.</button>
+            </div>
+
             <div className="bg-white/5 rounded-[40px] p-6 border-2 border-white/10">
                 <Trophy className="h-8 w-8 text-yellow-400 mx-auto mb-4" />
                 <h3 className="font-black uppercase italic mb-4 text-xs opacity-50">Leaderboard</h3>
@@ -179,6 +186,48 @@ export function GameUI({ activeTab, setActiveTab, currentSkin, onSkinSelect, isH
                 <div className="p-6 bg-blue-500/10 border border-blue-500/20 rounded-3xl mt-8">
                     <Info className="h-5 w-5 text-blue-400 mx-auto mb-2" />
                     <p className="text-[10px] text-blue-300 font-bold uppercase">Cashouts are processed within 48 hours to your registered email.</p>
+                </div>
+            </div>
+        )}
+
+        {/* HOW TO PLAY */}
+        {activeTab === 'how_to_play' && (
+            <div className="w-full max-w-md space-y-8 pb-20 text-left">
+                <button onClick={() => setActiveTab('event')} className="flex items-center gap-2 text-white/40 font-bold uppercase text-[10px] mb-8 active:scale-90 transition-transform"><ArrowLeft className="h-4 w-4" /> Back</button>
+                <h2 className="text-4xl font-black italic uppercase text-blue-400 text-center">How to Play</h2>
+                <div className="bg-white/5 border border-white/10 p-8 rounded-[40px] space-y-6">
+                    <section>
+                        <h3 className="text-primary font-black uppercase text-xs mb-2 italic tracking-widest">Scoring</h3>
+                        <p className="text-sm text-white/60 leading-relaxed font-bold uppercase">Pass through platforms to earn JP (Jump Points). Clear the level to save your points and earn Viral Coins!</p>
+                    </section>
+                    <section>
+                        <h3 className="text-primary font-black uppercase text-xs mb-2 italic tracking-widest">Controls</h3>
+                        <p className="text-sm text-white/60 leading-relaxed font-bold uppercase">Swipe left and right to rotate the tower. Avoid the red zones or you'll have to watch an ad to revive!</p>
+                    </section>
+                    <section>
+                        <h3 className="text-primary font-black uppercase text-xs mb-2 italic tracking-widest">Withdrawals</h3>
+                        <p className="text-sm text-white/60 leading-relaxed font-bold uppercase">Reach the required JP threshold and browse the catalog to request a gift card or cash payout.</p>
+                    </section>
+                </div>
+            </div>
+        )}
+
+        {/* FAQ */}
+        {activeTab === 'faq' && (
+            <div className="w-full max-w-md space-y-8 pb-20 text-left">
+                <button onClick={() => setActiveTab('event')} className="flex items-center gap-2 text-white/40 font-bold uppercase text-[10px] mb-8 active:scale-90 transition-transform"><ArrowLeft className="h-4 w-4" /> Back</button>
+                <h2 className="text-4xl font-black italic uppercase text-blue-400 text-center">F.A.Q.</h2>
+                <div className="space-y-4">
+                    {[
+                        { q: "How long do payouts take?", a: "Most payouts are processed within 48 business hours." },
+                        { q: "Can I play on multiple devices?", a: "Yes, just login with your same email to sync your balance." },
+                        { q: "Is the app free?", a: "Yes! You earn rewards just by playing and watching occasional ads." }
+                    ].map((item, i) => (
+                        <div key={i} className="bg-white/5 border border-white/10 p-6 rounded-[30px]">
+                            <h3 className="font-black uppercase text-[10px] text-primary mb-2 italic">{item.q}</h3>
+                            <p className="text-xs text-white/50 font-bold uppercase leading-relaxed">{item.a}</p>
+                        </div>
+                    ))}
                 </div>
             </div>
         )}
