@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { type User } from '@supabase/supabase-js';
 import { toast } from 'sonner';
@@ -8,78 +8,93 @@ export function useAuth() {
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
+  const fetchProfile = useCallback(async (userId: string) => {
+    try {
+        const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).single();
+        if (data) {
+            setProfile(data);
+        } else {
+            // Profile doesn't exist, create it from user metadata
+            const { data: { user } } = await supabase.auth.getUser();
+            const username = user?.user_metadata?.username || 'Gamer';
+            const { data: newProfile, error: createError } = await supabase
+                .from('profiles')
+                .upsert({ id: userId, username: username, jump_balance: 0, coin_balance: 0 })
+                .select()
+                .single();
+            if (newProfile) setProfile(newProfile);
+        }
+    } catch (e) {
+        console.error("Auth: Profile fetch error", e);
+    } finally {
+        setLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-      if (session?.user) fetchProfile(session.user.id);
-      else setLoading(false);
+      if (session?.user) {
+          setUser(session.user);
+          fetchProfile(session.user.id);
+      } else {
+          setLoading(false);
+      }
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
       if (session?.user) {
+          setUser(session.user);
           fetchProfile(session.user.id);
       } else {
-        setProfile(null);
-        setLoading(false);
+          setUser(null);
+          setProfile(null);
+          setLoading(false);
       }
     });
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [fetchProfile]);
 
-  async function fetchProfile(userId: string) {
-    const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).single();
-    if (data) {
-        setProfile(data);
-    } else if (error && error.code === 'PGRST116') {
-        setTimeout(() => fetchProfile(userId), 1500);
-    }
-    setLoading(false);
-  }
-
-  async function signIn(email: string, pass: string) {
+  const signIn = async (email: string, pass: string) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password: pass });
     if (error) throw error;
     toast.success("Welcome back!");
-  }
+  };
 
-  async function signUp(email: string, pass: string, username: string) {
+  const signUp = async (email: string, pass: string, username: string) => {
     const { data, error } = await supabase.auth.signUp({
         email,
         password: pass,
-        options: {
-            data: { username }
-        }
+        options: { data: { username } }
     });
-
     if (error) throw error;
 
-    if (!data.session) {
-        toast.error("Check your email or disable 'Confirm Email' in Supabase!");
-    } else {
+    if (data.user) {
+        await supabase.from('profiles').upsert({ id: data.user.id, username, jump_balance: 0, coin_balance: 0 });
         toast.success("Account created!");
+    } else {
+        toast.error("Check your email!");
     }
-  }
+  };
 
-  async function addJumpPoints(amount: number) {
+  const addJumpPoints = useCallback(async (amount: number) => {
     if (!user || !profile) return;
     const newBalance = (profile.jump_balance || 0) + amount;
     const { error } = await supabase.from('profiles').update({ jump_balance: newBalance }).eq('id', user.id);
-    if (!error) setProfile({ ...profile, jump_balance: newBalance });
-  }
+    if (!error) setProfile((prev: any) => prev ? { ...prev, jump_balance: newBalance } : null);
+  }, [user, profile]);
 
-  async function addViralCoins(amount: number) {
+  const addViralCoins = useCallback(async (amount: number) => {
     if (!user || !profile) return;
     const newBalance = (profile.coin_balance || 0) + amount;
     const { error } = await supabase.from('profiles').update({ coin_balance: newBalance }).eq('id', user.id);
-    if (!error) setProfile({ ...profile, coin_balance: newBalance });
-  }
+    if (!error) setProfile((prev: any) => prev ? { ...prev, coin_balance: newBalance } : null);
+  }, [user, profile]);
 
-  async function signOut() {
+  const signOut = async () => {
     await supabase.auth.signOut();
     toast.success("Signed out");
-  }
+  };
 
   return { user, profile, loading, signIn, signUp, addJumpPoints, addViralCoins, signOut, supabase };
 }
