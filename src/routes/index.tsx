@@ -23,11 +23,15 @@ function GamePage() {
   const [activeTab, setActiveTab] = useState<'play' | 'inventory' | 'store' | 'event' | 'store_pack' | 'store_coins' | 'catalog' | 'how_to_play' | 'faq'>('play')
   const [gameState, setGameState] = useState<'HOME' | 'PLAYING' | 'REVIVE' | 'WIN'>('HOME')
   const [score, setScore] = useState(0)
+  const scoreRef = useRef(0) // Crucial for saving the right score
   const [level, setLevel] = useState(1)
   const [currentSkin, setCurrentSkin] = useState('fire')
   const [levelCounter, setLevelCounter] = useState(0)
   const [isAdLoading, setIsAdLoading] = useState(false)
   const [isAdPlaying, setIsAdPlaying] = useState(false)
+
+  // Sync scoreRef
+  useEffect(() => { scoreRef.current = score; }, [score]);
 
   // Auth States
   const [isLogin, setIsLogin] = useState(true)
@@ -44,7 +48,7 @@ function GamePage() {
         try {
             await AdMob.initialize();
             await AdMob.showBanner({
-                adId: 'ca-app-pub-3940256099942544/6300978111', // Test ID
+                adId: 'ca-app-pub-3940256099942544/6300978111',
                 position: BannerAdPosition.TOP_CENTER,
                 size: BannerAdSize.BANNER,
                 isTesting: true,
@@ -62,8 +66,14 @@ function GamePage() {
     setIsAdLoading(false);
     setIsAdPlaying(false);
     if (engineRef.current) engineRef.current.setPaused(false);
-    if (audioRef.current) audioRef.current.play().catch(() => {});
-  }, []);
+
+    // Smooth delay before music resumes
+    setTimeout(() => {
+        if (audioRef.current && !isAdPlaying) {
+            audioRef.current.play().catch(() => {});
+        }
+    }, 500);
+  }, [isAdPlaying]);
 
   // Global Ad Listeners
   useEffect(() => {
@@ -81,7 +91,9 @@ function GamePage() {
     const dismissedListener = AdMob.addListener(RewardAdPluginEvents.Dismissed, () => {
         setIsAdLoading(false);
         setIsAdPlaying(false);
-        if (audioRef.current) audioRef.current.play().catch(() => {});
+        setTimeout(() => {
+            if (audioRef.current) audioRef.current.play().catch(() => {});
+        }, 500);
     });
 
     return () => {
@@ -102,10 +114,13 @@ function GamePage() {
       onWin: () => {
           setGameState('WIN');
           audioRef.current?.pause();
-          if (score > 0) {
-              addJumpPoints(score);
+
+          // Use current scoreRef to ensure accuracy
+          if (scoreRef.current > 0) {
+              addJumpPoints(scoreRef.current);
               addViralCoins(50);
           }
+
           setLevelCounter(prev => {
               const next = prev + 1;
               if (next % 3 === 0 && Capacitor.isNativePlatform()) {
@@ -114,7 +129,10 @@ function GamePage() {
               return next;
           });
       },
-      onLoss: () => { setGameState('REVIVE'); audioRef.current?.pause(); },
+      onLoss: () => {
+          setGameState('REVIVE');
+          audioRef.current?.pause();
+      },
       onScoreUpdate: (pts) => setScore(prev => prev + pts)
     })
     engineRef.current = engine
@@ -174,7 +192,7 @@ function GamePage() {
 
   if (!user) {
       return (
-          <div className="h-screen w-full bg-[#050510] flex flex-col items-center justify-center p-8 text-white overflow-y-auto">
+          <div className="h-screen w-full bg-[#050510] flex flex-col items-center justify-start p-8 pt-24 text-white overflow-y-auto">
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-[0.03] z-0">
                 <span className="text-[90vh] font-black italic select-none">H</span>
               </div>
@@ -183,7 +201,7 @@ function GamePage() {
                   <h1 className="text-7xl font-black italic mb-2 text-primary tracking-tighter drop-shadow-glow">HELIX</h1>
                   <p className="text-white/40 uppercase tracking-[0.4em] text-[9px] mb-12 font-bold">Empire Rewards System</p>
 
-                  <form onSubmit={handleAuth} className="w-full space-y-3 pb-10">
+                  <form onSubmit={handleAuth} className="w-full space-y-3 pb-20">
                       {!isLogin && (
                           <div className="bg-white/5 border border-white/10 rounded-2xl flex items-center px-4 py-4 focus-within:border-primary/50 transition-colors">
                               <UserIcon className="h-5 w-5 text-white/20 mr-3" />
@@ -210,7 +228,7 @@ function GamePage() {
                       <button type="submit" className="w-full bg-primary py-5 rounded-3xl font-black uppercase tracking-widest shadow-glow active:scale-95 transition-all mt-4">
                           {isLogin ? 'Login' : 'Create Account'}
                       </button>
-                      <button type="button" onClick={() => setIsLogin(!isLogin)} className="w-full text-center text-white/40 font-bold text-xs uppercase tracking-widest mt-6 underline">
+                      <button type="button" onClick={() => setIsLogin(!isLogin)} className="w-full text-center text-white/40 font-bold text-sm uppercase tracking-widest mt-6 underline">
                           {isLogin ? "Need an account? Sign Up" : "Back to Login"}
                       </button>
                   </form>

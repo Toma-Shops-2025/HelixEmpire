@@ -14,87 +14,56 @@ export function useAuth() {
         if (data) {
             setProfile(data);
         } else {
-            // Profile doesn't exist, create it from user metadata
             const { data: { user } } = await supabase.auth.getUser();
             const username = user?.user_metadata?.username || 'Gamer';
-            const { data: newProfile, error: createError } = await supabase
-                .from('profiles')
-                .upsert({ id: userId, username: username, jump_balance: 0, coin_balance: 0 })
-                .select()
-                .single();
-            if (newProfile) setProfile(newProfile);
+            const { data: newP } = await supabase.from('profiles').upsert({ id: userId, username, jump_balance: 0, coin_balance: 0 }).select().single();
+            if (newP) setProfile(newP);
         }
-    } catch (e) {
-        console.error("Auth: Profile fetch error", e);
-    } finally {
-        setLoading(false);
-    }
+    } catch (e) {} finally { setLoading(false); }
   }, []);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
-          setUser(session.user);
-          fetchProfile(session.user.id);
-      } else {
-          setLoading(false);
-      }
+      if (session?.user) { setUser(session.user); fetchProfile(session.user.id); }
+      else setLoading(false);
     });
-
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session?.user) {
-          setUser(session.user);
-          fetchProfile(session.user.id);
-      } else {
-          setUser(null);
-          setProfile(null);
-          setLoading(false);
-      }
+      if (session?.user) { setUser(session.user); fetchProfile(session.user.id); }
+      else { setUser(null); setProfile(null); setLoading(false); }
     });
-
     return () => subscription.unsubscribe();
   }, [fetchProfile]);
 
   const signIn = async (email: string, pass: string) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password: pass });
     if (error) throw error;
-    toast.success("Welcome back!");
   };
 
   const signUp = async (email: string, pass: string, username: string) => {
-    const { data, error } = await supabase.auth.signUp({
-        email,
-        password: pass,
-        options: { data: { username } }
-    });
+    const { data, error } = await supabase.auth.signUp({ email, password: pass, options: { data: { username } } });
     if (error) throw error;
-
-    if (data.user) {
-        await supabase.from('profiles').upsert({ id: data.user.id, username, jump_balance: 0, coin_balance: 0 });
-        toast.success("Account created!");
-    } else {
-        toast.error("Check your email!");
-    }
+    if (data.user) await supabase.from('profiles').upsert({ id: data.user.id, username, jump_balance: 0, coin_balance: 0 });
   };
 
   const addJumpPoints = useCallback(async (amount: number) => {
-    if (!user || !profile) return;
-    const newBalance = (profile.jump_balance || 0) + amount;
-    const { error } = await supabase.from('profiles').update({ jump_balance: newBalance }).eq('id', user.id);
-    if (!error) setProfile((prev: any) => prev ? { ...prev, jump_balance: newBalance } : null);
-  }, [user, profile]);
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user) return;
+    const { data: curr } = await supabase.from('profiles').select('jump_balance').eq('id', session.user.id).single();
+    const total = (curr?.jump_balance || 0) + amount;
+    await supabase.from('profiles').update({ jump_balance: total }).eq('id', session.user.id);
+    setProfile((prev: any) => prev ? { ...prev, jump_balance: total } : null);
+  }, []);
 
   const addViralCoins = useCallback(async (amount: number) => {
-    if (!user || !profile) return;
-    const newBalance = (profile.coin_balance || 0) + amount;
-    const { error } = await supabase.from('profiles').update({ coin_balance: newBalance }).eq('id', user.id);
-    if (!error) setProfile((prev: any) => prev ? { ...prev, coin_balance: newBalance } : null);
-  }, [user, profile]);
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user) return;
+    const { data: curr } = await supabase.from('profiles').select('coin_balance').eq('id', session.user.id).single();
+    const total = (curr?.coin_balance || 0) + amount;
+    await supabase.from('profiles').update({ coin_balance: total }).eq('id', session.user.id);
+    setProfile((prev: any) => prev ? { ...prev, coin_balance: total } : null);
+  }, []);
 
-  const signOut = async () => {
-    await supabase.auth.signOut();
-    toast.success("Signed out");
-  };
+  const signOut = async () => { await supabase.auth.signOut(); };
 
-  return { user, profile, loading, signIn, signUp, addJumpPoints, addViralCoins, signOut, supabase };
+  return { user, profile, loading, signIn, signUp, addJumpPoints, addViralCoins, signOut, supabase, fetchProfile };
 }

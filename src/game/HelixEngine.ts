@@ -122,7 +122,10 @@ export class HelixEngine {
       const isHazard = !isWin && !isFirst && Math.random() > 0.95;
       const arc = (1 / segments) * Math.PI * 2;
       const geo = new THREE.CylinderGeometry(6, 6, 0.8, radialSegments, 1, false, (i / segments) * Math.PI * 2, arc);
-      const mat = new THREE.MeshStandardMaterial({ color: isWin ? 0xffaa00 : (isHazard ? 0xff0000 : color) });
+      const mat = new THREE.MeshStandardMaterial({
+          color: isWin ? 0xffaa00 : (isHazard ? 0xff0000 : color),
+          flatShading: true // Makes the shapes (Octagon, Square) look crisp and sharp!
+      });
       const segment = new THREE.Mesh(geo, mat);
       segment.userData = { isHazard, isWinPlatform: isWin, isPlatform: true };
       platform.add(segment);

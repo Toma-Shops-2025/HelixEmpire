@@ -30,7 +30,7 @@ interface GameUIProps {
 }
 
 export function GameUI({ activeTab, setActiveTab, currentSkin, onSkinSelect, isHidden }: GameUIProps) {
-  const { user, signOut, supabase, addViralCoins, profile } = useAuth();
+  const { user, signOut, supabase, addViralCoins, profile, fetchProfile } = useAuth();
   const { purchase } = useBilling(addViralCoins);
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
 
@@ -41,8 +41,11 @@ export function GameUI({ activeTab, setActiveTab, currentSkin, onSkinSelect, isH
   };
 
   useEffect(() => {
-    if (activeTab === 'event') fetchLeaderboard();
-  }, [activeTab]);
+    if (activeTab === 'event') {
+        fetchLeaderboard();
+        if (user) fetchProfile(user.id); // Refresh balance when opening Wins screen
+    }
+  }, [activeTab, user]);
 
   return (
     <div className="absolute inset-0 flex flex-col justify-end text-white z-[2500] pointer-events-none">
