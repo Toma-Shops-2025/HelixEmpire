@@ -90,6 +90,8 @@ export class HelixEngine {
 
   public setupLevel(level: number) {
     if (!this.tower || !this.ball) return;
+    this.state.level = level; // CRITICAL: Update internal state so createPlatform sees it!
+
     const toRemove = this.tower.children.filter(c => c.userData.isLevelObject);
     toRemove.forEach(c => this.tower?.remove(c));
 
@@ -109,11 +111,11 @@ export class HelixEngine {
     const segments = 12;
     const gapStart = Math.floor(Math.random() * segments);
 
-    // More aggressive shape changes starting earlier
-    let radialSegments = 32;
-    if (this.state.level >= 15) radialSegments = 4; // Square
+    // DYNAMIC SHAPES
+    let radialSegments = 32; // Round by default
+    if (this.state.level >= 15) radialSegments = 4;      // Square
     else if (this.state.level >= 10) radialSegments = 6; // Hexagon
-    else if (this.state.level >= 5) radialSegments = 8; // Octagon
+    else if (this.state.level >= 5) radialSegments = 8;  // Octagon
     else if (this.state.level >= 3) radialSegments = 12; // Dodecagon
 
     for (let i = 0; i < segments; i++) {
@@ -124,7 +126,7 @@ export class HelixEngine {
       const geo = new THREE.CylinderGeometry(6, 6, 0.8, radialSegments, 1, false, (i / segments) * Math.PI * 2, arc);
       const mat = new THREE.MeshStandardMaterial({
           color: isWin ? 0xffaa00 : (isHazard ? 0xff0000 : color),
-          flatShading: true // Makes the shapes (Octagon, Square) look crisp and sharp!
+          flatShading: true // Makes geometry edges visible/sharp
       });
       const segment = new THREE.Mesh(geo, mat);
       segment.userData = { isHazard, isWinPlatform: isWin, isPlatform: true };
@@ -140,7 +142,6 @@ export class HelixEngine {
         this.previousMouseX = x;
     };
 
-    // Support Mouse and Touch
     this.container.addEventListener('mousedown', e => { this.isRotating = true; this.previousMouseX = e.clientX; });
     window.addEventListener('mousemove', e => move(e.clientX));
     window.addEventListener('mouseup', () => this.isRotating = false);
@@ -161,42 +162,22 @@ export class HelixEngine {
 
     if (this.autoRotate) this.tower.rotation.y += 0.015;
 
-    // Advanced Animations for all Skins
     const skin = this.ball.userData.skin;
     const mat = this.ball.material as THREE.MeshStandardMaterial;
 
-    if (skin === 'fire') { // Viral Spark
+    if (skin === 'fire') {
         const s = 1 + Math.sin(time * 12) * 0.15;
         this.ball.scale.set(s, s, s);
         mat.emissiveIntensity = 2 + Math.sin(time * 10);
-        this.ball.rotation.y += 0.1;
-    } else if (skin === 'gold') { // Liquid Gold
-        this.ball.rotation.y += 0.02;
-        this.ball.rotation.z += 0.02;
+    } else if (skin === 'gold') {
         mat.metalness = 0.9 + Math.sin(time * 3) * 0.1;
-        const pulse = 1 + Math.sin(time * 2) * 0.05;
-        this.ball.scale.set(pulse, pulse, pulse);
-    } else if (skin === 'glass') { // Neon Phantom
-        this.ball.rotation.y += 0.06;
+    } else if (skin === 'glass') {
         mat.color.setHSL((time * 0.15) % 1, 0.9, 0.6);
-        mat.opacity = 0.4 + Math.sin(time * 5) * 0.2;
-    } else if (skin === 'yellow') { // TomaBox
-        const wobble = Math.sin(time * 15) * 0.1;
-        this.ball.rotation.x += 0.05 + wobble;
-        this.ball.rotation.z += 0.05 + wobble;
-        this.ball.position.x = Math.sin(time * 6) * 0.3;
-    } else if (skin === 'crown') { // Grand Crown
-        mat.emissiveIntensity = 3 + Math.sin(time * 15) * 2;
-        this.ball.rotation.y += 0.15;
-        const heroBounce = Math.abs(Math.sin(time * 8)) * 0.25;
-        this.ball.scale.set(1.1 + heroBounce, 1.1 + heroBounce, 1.1 + heroBounce);
     }
 
     if (!this.isPaused) {
         this.ballVelocity += this.gravity;
-        // Cap downward velocity to prevent clipping
         if (this.ballVelocity < -0.4) this.ballVelocity = -0.4;
-
         this.ball.position.y += this.ballVelocity;
         this.camera.position.y = this.ball.position.y + 8;
         this.camera.lookAt(0, this.ball.position.y, 0);
@@ -228,28 +209,11 @@ export class HelixEngine {
     mat.opacity = 1.0;
     mat.emissive.set(0x000000);
 
-    if (s === 'gold') {
-        mat.color.set(0xffd700);
-        mat.metalness = 1.0;
-        mat.roughness = 0.05;
-    } else if (s === 'glass') {
-        mat.color.set(0x00ffff);
-        mat.opacity = 0.5;
-        mat.metalness = 0.1;
-        mat.roughness = 0;
-    } else if (s === 'fire') {
-        mat.color.set(0xff4500);
-        mat.emissive.set(0xff0000);
-        mat.emissiveIntensity = 2.5;
-    } else if (s === 'yellow') {
-        mat.color.set(0xffff00);
-        mat.metalness = 0.6;
-        mat.roughness = 0.1;
-    } else if (s === 'crown') {
-        mat.color.set(0xaa00ff);
-        mat.emissive.set(0xff00ff);
-        mat.emissiveIntensity = 3;
-    }
+    if (s === 'gold') { mat.color.set(0xffd700); mat.metalness = 1.0; mat.roughness = 0.05; }
+    else if (s === 'glass') { mat.color.set(0x00ffff); mat.opacity = 0.5; mat.metalness = 0.1; mat.roughness = 0; }
+    else if (s === 'fire') { mat.color.set(0xff4500); mat.emissive.set(0xff0000); mat.emissiveIntensity = 2.5; }
+    else if (s === 'yellow') { mat.color.set(0xffff00); mat.metalness = 0.6; mat.roughness = 0.1; }
+    else if (s === 'crown') { mat.color.set(0xaa00ff); mat.emissive.set(0xff00ff); mat.emissiveIntensity = 3; }
     mat.needsUpdate = true;
   }
 
