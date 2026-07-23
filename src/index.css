@@ -37,6 +37,27 @@ body {
 
 @layer utilities {
   .shadow-x-glow {
+    text-shadow:
+        0 0 20px rgba(255, 69, 0, 0.6),
+        0 0 40px rgba(255, 69, 0, 0.4),
+        0 0 80px rgba(255, 69, 0, 0.2);
+    filter: drop-shadow(0 0 30px rgba(255, 69, 0, 0.5));
+  }
+
+  .animate-float-slow {
+    animation: float 30s ease-in-out infinite;
+  }
+}
+
+@keyframes float {
+  0% { transform: translate(-2vw, -2vh) rotate(0deg); }
+  33% { transform: translate(2vw, 2vh) rotate(5deg); }
+  66% { transform: translate(-1vw, 4vh) rotate(-3deg); }
+  100% { transform: translate(-2vw, -2vh) rotate(0deg); }
+}
+
+@layer utilities {
+  .shadow-x-glow {
     text-shadow: 0 0 40px rgba(255, 69, 0, 0.4), 0 0 80px rgba(255, 69, 0, 0.2);
     filter: drop-shadow(0 0 20px rgba(255, 69, 0, 0.3));
   }

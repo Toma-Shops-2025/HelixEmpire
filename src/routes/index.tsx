@@ -256,7 +256,7 @@ function GamePage() {
   return (
     <div className="relative w-full h-[100dvh] overflow-hidden bg-black text-white">
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0">
-         <span className="text-[90vh] font-black italic opacity-[0.04] shadow-x-glow animate-float-slow select-none">H</span>
+         <span className="text-[90vh] font-black italic opacity-[0.08] shadow-x-glow animate-float-slow select-none">H</span>
       </div>
 
       <div ref={containerRef} className="absolute inset-0 z-0" />
