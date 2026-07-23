@@ -29,6 +29,18 @@ function GamePage() {
   const [levelCounter, setLevelCounter] = useState(0)
   const [isAdLoading, setIsAdLoading] = useState(false)
   const [isAdPlaying, setIsAdPlaying] = useState(false)
+  const isAdPlayingRef = useRef(false)
+
+  // Sync refs
+  useEffect(() => { isAdPlayingRef.current = isAdPlaying; }, [isAdPlaying]);
+
+  // Auth States
+  const [isLogin, setIsLogin] = useState(true)
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [username, setUsername] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
+  const [agreed, setAgreed] = useState(false)
 
   // Sync scoreRef
   useEffect(() => { scoreRef.current = score; }, [score]);
@@ -68,7 +80,7 @@ function GamePage() {
 
     // Smooth delay before music resumes to prevent stuttering
     setTimeout(() => {
-        if (audioRef.current && !isAdPlaying) {
+        if (audioRef.current && !isAdPlayingRef.current) {
             audioRef.current.play().catch(() => {});
         }
     }, 800);
