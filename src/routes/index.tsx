@@ -213,6 +213,7 @@ function GamePage() {
               </div>
 
               <div className="relative z-10 w-full max-w-sm flex flex-col items-center">
+                  <img src="/logo.png" className="w-48 h-48 mb-6 drop-shadow-glow" alt="Logo" />
                   <h1 className="text-7xl font-black italic mb-2 text-primary tracking-tighter drop-shadow-glow">HELIX</h1>
                   <p className="text-white/40 uppercase tracking-[0.4em] text-[9px] mb-12 font-bold">Empire Rewards System</p>
 
