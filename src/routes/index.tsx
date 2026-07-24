@@ -6,7 +6,7 @@ import { useAuth } from '@/hooks/use-auth'
 import { AdMob, BannerAdPosition, BannerAdSize, RewardAdPluginEvents } from '@capacitor-community/admob'
 import { Browser } from '@capacitor/browser'
 import { Capacitor } from '@capacitor/core'
-import { Coins, Zap, Mail, Lock, User as UserIcon, Eye, EyeOff, Loader2, Sparkles, Trophy } from 'lucide-react'
+import { Coins, Zap, Mail, Lock, User as UserIcon, Eye, EyeOff, Loader2, Sparkles, Trophy, LogIn } from 'lucide-react'
 import { toast } from 'sonner'
 
 export const Route = createFileRoute('/')({
@@ -17,7 +17,7 @@ function GamePage() {
   const containerRef = useRef<HTMLDivElement>(null)
   const engineRef = useRef<HelixEngine | null>(null)
   const audioRef = useRef<HTMLAudioElement | null>(null)
-  const { user, profile, signIn, signUp, addJumpPoints, addViralCoins, supabase, loading, fetchProfile } = useAuth()
+  const { user, profile, signIn, signInWithGoogle, signUp, addJumpPoints, addViralCoins, supabase, loading, fetchProfile } = useAuth()
 
   // Master State
   const [activeTab, setActiveTab] = useState<'play' | 'inventory' | 'store' | 'event' | 'store_pack' | 'store_coins' | 'catalog' | 'how_to_play' | 'faq'>('play')
@@ -244,6 +244,22 @@ function GamePage() {
                       <button type="submit" className="w-full bg-primary py-5 rounded-3xl font-black uppercase tracking-widest shadow-glow active:scale-95 transition-all mt-4">
                           {isLogin ? 'Login' : 'Create Account'}
                       </button>
+
+                      <div className="flex items-center my-6 opacity-20 w-full">
+                        <div className="h-px bg-white flex-1" />
+                        <span className="px-4 text-[10px] font-black uppercase tracking-widest">OR</span>
+                        <div className="h-px bg-white flex-1" />
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => signInWithGoogle()}
+                        className="w-full bg-white text-black py-5 rounded-3xl font-black uppercase tracking-widest active:scale-95 transition-all flex items-center justify-center gap-3"
+                      >
+                        <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" className="w-5 h-5" alt="" />
+                        Continue with Google
+                      </button>
+
                       <button type="button" onClick={() => setIsLogin(!isLogin)} className="w-full text-center text-white/40 font-bold text-xs uppercase tracking-widest mt-6 underline">
                           {isLogin ? "Need an account? Sign Up" : "Back to Login"}
                       </button>

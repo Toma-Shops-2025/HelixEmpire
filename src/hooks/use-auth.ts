@@ -59,6 +59,16 @@ export function useAuth() {
     if (error) throw error;
   };
 
+  const signInWithGoogle = async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: window.location.origin
+      }
+    });
+    if (error) throw error;
+  };
+
   const signUp = async (email: string, pass: string, username: string) => {
     const { data, error } = await supabase.auth.signUp({
         email,
@@ -103,5 +113,5 @@ export function useAuth() {
     await supabase.auth.signOut();
   };
 
-  return { user, profile, loading, signIn, signUp, addJumpPoints, addViralCoins, signOut, supabase, fetchProfile };
+  return { user, profile, loading, signIn, signInWithGoogle, signUp, addJumpPoints, addViralCoins, signOut, supabase, fetchProfile };
 }

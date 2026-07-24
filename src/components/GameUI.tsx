@@ -1,4 +1,4 @@
-import { ShoppingBag, Award, Box, Check, Trophy, Gift, ArrowLeft, Smartphone, CreditCard, ShoppingCart, Info, DollarSign } from 'lucide-react';
+import { ShoppingBag, Award, Box, Check, Trophy, Gift, ArrowLeft, Smartphone, CreditCard, ShoppingCart, Info, DollarSign, Sun, Moon, Monitor } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/use-auth';
 import { useBilling, PRODUCT_EMPIRE_PACK, PRODUCT_COINS_1000 } from '@/hooks/use-billing';
@@ -33,6 +33,20 @@ export function GameUI({ activeTab, setActiveTab, currentSkin, onSkinSelect, isH
   const { user, signOut, supabase, addViralCoins, profile, fetchProfile } = useAuth();
   const { purchase } = useBilling(addViralCoins);
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
+  const [theme, setTheme] = useState<'light' | 'dark' | 'system'>(() => {
+    return (localStorage.getItem('theme') as any) || 'dark';
+  });
+
+  useEffect(() => {
+    const root = window.document.documentElement;
+    if (theme === 'system') {
+      const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      root.classList.toggle('dark', systemTheme === 'dark');
+    } else {
+      root.classList.toggle('dark', theme === 'dark');
+    }
+    localStorage.setItem('theme', theme);
+  }, [theme]);
 
   const fetchLeaderboard = async () => {
     if (!supabase) return;
@@ -173,15 +187,35 @@ export function GameUI({ activeTab, setActiveTab, currentSkin, onSkinSelect, isH
         {activeTab === 'how_to_play' && (
             <div className="w-full max-w-md space-y-8 pb-20 text-left">
                 <button onClick={() => setActiveTab('event')} className="flex items-center gap-2 text-white/40 font-bold uppercase text-[10px] mb-8 active:scale-90"><ArrowLeft className="h-4 w-4" /> Back</button>
-                <h2 className="text-5xl font-black italic uppercase tracking-tighter mb-8 text-blue-400 text-center">Rules</h2>
-                <div className="bg-white/5 border border-white/10 p-8 rounded-[40px] space-y-6 font-bold uppercase">
+                <h2 className="text-5xl font-black italic uppercase tracking-tighter mb-8 text-blue-400 text-center">How It Works</h2>
+                <div className="bg-white/5 border border-white/10 p-8 rounded-[40px] space-y-8 font-bold uppercase">
                     <section>
-                        <h3 className="text-primary text-xs mb-2 italic tracking-widest font-black">Scoring</h3>
-                        <p className="text-sm text-white/60 leading-relaxed">Pass platforms to earn JP. Clear the stage to save your points and earn 50 Viral Coins!</p>
+                        <h3 className="text-primary text-xs mb-3 italic tracking-[0.2em] font-black flex items-center gap-2">
+                          <Zap className="h-4 w-4 fill-current" /> Scoring
+                        </h3>
+                        <p className="text-sm text-white/60 leading-relaxed">
+                          Descend through the tower gaps to earn <span className="text-white">Jump Points (JP)</span>.
+                          Smashing multiple platforms at once triggers a <span className="text-primary">Fire Multiplier</span>!
+                        </p>
                     </section>
                     <section>
-                        <h3 className="text-primary text-xs mb-2 italic tracking-widest font-black">Controls</h3>
-                        <p className="text-sm text-white/60 leading-relaxed">Swipe to rotate. Avoid red zones. Use Lucky Daub (ads) to revive if you fail!</p>
+                        <h3 className="text-primary text-xs mb-3 italic tracking-[0.2em] font-black flex items-center gap-2">
+                          <Trophy className="h-4 w-4 fill-current" /> Rewards
+                        </h3>
+                        <p className="text-sm text-white/60 leading-relaxed">
+                          Accumulate JP to climb the leaderboard and unlock <span className="text-white">Real Gift Cards</span>.
+                          Stage clears award <span className="text-yellow-400 font-black">50 Viral Coins</span> for the store!
+                        </p>
+                    </section>
+                    <section>
+                        <h3 className="text-primary text-xs mb-3 italic tracking-[0.2em] font-black flex items-center gap-2">
+                          <Check className="h-4 w-4 stroke-[4]" /> Pro Tips
+                        </h3>
+                        <ul className="text-xs text-white/40 space-y-2 font-bold leading-relaxed">
+                          <li>• Avoid the red zones - they will end your run!</li>
+                          <li>• Use 'Lucky Daub' to revive and keep your progress.</li>
+                          <li>• Change your skin in the inventory for unique visual effects.</li>
+                        </ul>
                     </section>
                 </div>
             </div>
@@ -207,11 +241,25 @@ export function GameUI({ activeTab, setActiveTab, currentSkin, onSkinSelect, isH
         )}
 
         {user && (
-            <div className="mt-8 flex flex-col items-center gap-4 w-full">
+            <div className="mt-8 flex flex-col items-center gap-6 w-full">
                 <div className="flex flex-col items-center opacity-40 uppercase font-black text-[10px] tracking-widest">
                     <span>Active Player</span>
                     <span className="text-primary text-lg italic border-b border-primary/20 pb-1 mt-1">{profile?.username || 'Gamer'}</span>
                 </div>
+
+                {/* Theme Toggle */}
+                <div className="bg-white/5 border border-white/10 rounded-2xl p-1 flex gap-1 w-full max-w-[200px]">
+                    <button onClick={() => setTheme('light')} className={cn("flex-1 py-2 rounded-xl flex justify-center transition-all", theme === 'light' ? "bg-white text-black" : "text-white/40")}>
+                        <Sun className="h-4 w-4" />
+                    </button>
+                    <button onClick={() => setTheme('dark')} className={cn("flex-1 py-2 rounded-xl flex justify-center transition-all", theme === 'dark' ? "bg-white text-black" : "text-white/40")}>
+                        <Moon className="h-4 w-4" />
+                    </button>
+                    <button onClick={() => setTheme('system')} className={cn("flex-1 py-2 rounded-xl flex justify-center transition-all", theme === 'system' ? "bg-white text-black" : "text-white/40")}>
+                        <Monitor className="h-4 w-4" />
+                    </button>
+                </div>
+
                 <button onClick={signOut} className="w-full py-5 bg-white/5 border-2 border-white/10 rounded-3xl font-black uppercase text-[10px] tracking-widest opacity-20 active:scale-95 transition-all">Sign Out</button>
             </div>
         )}
