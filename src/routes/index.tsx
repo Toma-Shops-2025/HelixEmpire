@@ -7,7 +7,7 @@ import { useAuth } from '@/hooks/use-auth'
 import { AdMob, BannerAdPosition, BannerAdSize, RewardAdPluginEvents } from '@capacitor-community/admob'
 import { Browser } from '@capacitor/browser'
 import { Capacitor } from '@capacitor/core'
-import { Coins, Zap, Mail, Lock, User as UserIcon, Eye, EyeOff, Loader2, Sparkles, Trophy } from 'lucide-react'
+import { Coins, Zap, Mail, Lock, User as UserIcon, Eye, EyeOff, Loader2, Sparkles, Trophy, TrendingUp, Gamepad2, Award, LogOut, ShoppingBag } from 'lucide-react'
 import { toast } from 'sonner'
 
 export const Route = createFileRoute('/')({
