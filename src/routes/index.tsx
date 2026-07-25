@@ -1,14 +1,14 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { cn } from '@/lib/utils'
 import { HelixEngine } from '@/game/HelixEngine'
 import { GameUI } from '@/components/GameUI'
 import { useAuth } from '@/hooks/use-auth'
 import { AdMob, BannerAdPosition, BannerAdSize, RewardAdPluginEvents } from '@capacitor-community/admob'
 import { Browser } from '@capacitor/browser'
 import { Capacitor } from '@capacitor/core'
-import { Coins, Zap, Mail, Lock, User as UserIcon, Eye, EyeOff, Loader2, Sparkles, Trophy, TrendingUp, Gamepad2, Award, LogOut, ShoppingBag } from 'lucide-react'
+import { Coins, Zap, Mail, Lock, User as UserIcon, Eye, EyeOff, Loader2, Sparkles, Trophy, Box, ShoppingBag, Award } from 'lucide-react'
 import { toast } from 'sonner'
+import { cn } from '@/lib/utils'
 
 export const Route = createFileRoute('/')({
   component: GamePage,
@@ -20,15 +20,17 @@ function GamePage() {
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const { user, profile, signIn, signInWithGoogle, signUp, addJumpPoints, addViralCoins, loading, fetchProfile } = useAuth()
 
-  // Correct Helix Empire Master States
+  // Master State
   const [activeTab, setActiveTab] = useState<'play' | 'inventory' | 'store' | 'event'>('play')
   const [gameState, setGameState] = useState<'HOME' | 'PLAYING' | 'REVIVE' | 'WIN'>('HOME')
   const [score, setScore] = useState(0)
+  const scoreRef = useRef(0)
   const [level, setLevel] = useState(1)
   const [currentSkin, setCurrentSkin] = useState('fire')
   const [isAdLoading, setIsAdLoading] = useState(false)
 
-  const isPlaying = gameState === 'PLAYING';
+  // Sync refs
+  useEffect(() => { scoreRef.current = score; }, [score]);
 
   // Ad Setup
   useEffect(() => {
@@ -76,6 +78,7 @@ function GamePage() {
   // Game Engine Lifecycle
   useEffect(() => {
     if (!containerRef.current || activeTab !== 'play' || !user) return
+
     if (engineRef.current) engineRef.current.dispose();
 
     const engine = new HelixEngine(containerRef.current, {
@@ -84,9 +87,10 @@ function GamePage() {
       onWin: async () => {
           setGameState('WIN');
           audioRef.current?.pause();
-          await addJumpPoints(score);
-          await addViralCoins(50);
-          if (Capacitor.isNativePlatform()) AdMob.showInterstitialAd().catch(() => {});
+          if (scoreRef.current > 0) {
+              await addJumpPoints(scoreRef.current);
+              await addViralCoins(50);
+          }
       },
       onLoss: () => {
           setGameState('REVIVE');
@@ -103,7 +107,7 @@ function GamePage() {
         engine.dispose();
         engineRef.current = null;
     }
-  }, [level, activeTab, user, currentSkin]);
+  }, [level, activeTab, user, currentSkin, addJumpPoints, addViralCoins]);
 
   const startGame = () => {
     if (audioRef.current) {
@@ -120,7 +124,7 @@ function GamePage() {
     setGameState('PLAYING');
     setTimeout(() => {
         if (engineRef.current) engineRef.current.setPaused(false);
-    }, 150);
+    }, 200);
   }
 
   const handleRevive = async () => {
@@ -135,14 +139,6 @@ function GamePage() {
     }
   }
 
-  const handleAuth = async (e: React.FormEvent) => {
-      e.preventDefault();
-      try {
-          if (isLogin) await signIn(email, password);
-          else await signUp(email, password, username);
-      } catch (err: any) { toast.error(err.message); }
-  }
-
   const [isLogin, setIsLogin] = useState(true)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -150,7 +146,16 @@ function GamePage() {
   const [showPassword, setShowPassword] = useState(false)
   const [agreed, setAgreed] = useState(false)
 
-  if (loading) return <div className="h-screen w-full bg-black flex items-center justify-center"><Loader2 className="animate-spin text-primary h-12 w-12" /></div>
+  const handleAuth = async (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!isLogin && !agreed) return toast.error("Please agree to terms.");
+      try {
+          if (isLogin) await signIn(email, password);
+          else await signUp(email, password, username);
+      } catch (err: any) { toast.error(err.message); }
+  }
+
+  if (loading) return <div className="h-screen w-full bg-black flex items-center justify-center text-white"><Loader2 className="animate-spin text-primary h-12 w-12" /></div>
 
   if (!user) {
       return (
@@ -158,31 +163,37 @@ function GamePage() {
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-[0.05] z-0">
                 <span className="text-[80vh] font-black italic select-none">H</span>
               </div>
-              <div className="relative z-10 w-full max-w-sm flex flex-col items-center text-center">
-                  <img src="/logo.png" className="w-40 h-40 mb-6 drop-shadow-glow" alt="Logo" />
-                  <h1 className="text-7xl font-black italic mb-2 text-primary tracking-tighter drop-shadow-glow leading-none">HELIX</h1>
+              <div className="relative z-10 w-full max-w-sm flex flex-col items-center">
+                  <img src="/logo.png" className="w-48 h-48 mb-6 drop-shadow-glow" alt="Logo" />
+                  <h1 className="text-7xl font-black italic mb-2 text-primary tracking-tighter drop-shadow-glow">HELIX</h1>
                   <p className="text-white/40 uppercase tracking-[0.4em] text-[9px] mb-12 font-bold italic">Empire Rewards System</p>
                   <form onSubmit={handleAuth} className="w-full space-y-3 pb-64">
                       {!isLogin && (
-                          <div className="bg-white/5 border border-white/10 rounded-2xl flex items-center px-4 py-4 backdrop-blur-md">
+                          <div className="bg-white/5 border border-white/10 rounded-2xl flex items-center px-4 py-4 focus-within:border-primary/50 transition-colors">
                               <UserIcon className="h-5 w-5 text-white/20 mr-3" />
                               <input type="text" placeholder="Username" className="bg-transparent outline-none w-full font-bold" value={username} onChange={e => setUsername(e.target.value)} required />
                           </div>
                       )}
-                      <div className="bg-white/5 border border-white/10 rounded-2xl flex items-center px-4 py-4 backdrop-blur-md">
+                      <div className="bg-white/5 border border-white/10 rounded-2xl flex items-center px-4 py-4 focus-within:border-primary/50 transition-colors">
                           <Mail className="h-5 w-5 text-white/40 mr-3" />
                           <input type="email" placeholder="Email" className="bg-transparent outline-none w-full font-bold" value={email} onChange={e => setEmail(e.target.value)} required />
                       </div>
-                      <div className="bg-white/5 border border-white/10 rounded-2xl flex items-center px-4 py-4 backdrop-blur-md">
-                          <Lock className="h-5 w-5 text-white/40 mr-3" />
+                      <div className="bg-white/5 border border-white/10 rounded-2xl flex items-center px-4 py-4 focus-within:border-primary/50 transition-colors">
+                          <Lock className="h-5 w-5 text-white/20 mr-3" />
                           <input type={showPassword ? "text" : "password"} placeholder="Password" name="password" className="bg-transparent outline-none w-full font-bold" value={password} onChange={e => setPassword(e.target.value)} required />
                           <button type="button" onClick={() => setShowPassword(!showPassword)} className="text-white/20 px-2">{showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}</button>
                       </div>
+                      {!isLogin && (
+                          <div className="flex items-center gap-3 px-2 py-2">
+                              <input type="checkbox" id="terms" checked={agreed} onChange={e => setAgreed(e.target.checked)} className="accent-primary h-4 w-4" />
+                              <label htmlFor="terms" className="text-[10px] text-white/40 font-bold uppercase underline">I agree to Terms</label>
+                          </div>
+                      )}
                       <button type="submit" className="w-full bg-primary py-5 rounded-3xl font-black uppercase tracking-widest shadow-glow active:scale-95 transition-all mt-4 text-white">
                           {isLogin ? 'Login' : 'Create Account'}
                       </button>
                       <button type="button" onClick={() => setIsLogin(!isLogin)} className="w-full text-center text-white/40 font-bold text-xs uppercase tracking-widest mt-6 underline">
-                          {isLogin ? "Join the Empire" : "Back to Login"}
+                          {isLogin ? "Need an account? Sign Up" : "Back to Login"}
                       </button>
                   </form>
               </div>
@@ -196,7 +207,7 @@ function GamePage() {
       <div ref={containerRef} className="absolute inset-0 z-10" />
 
       {/* Cinematic Logo Layer */}
-      {!isPlaying && (
+      {gameState !== 'PLAYING' && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
              <span className="text-[80vh] font-black italic opacity-[0.08] shadow-x-glow animate-pulse select-none">H</span>
           </div>
@@ -213,37 +224,39 @@ function GamePage() {
                   <Zap className="h-4 w-4 text-blue-400" />
                   <span className="font-black text-sm">{(profile?.jump_balance || 0).toLocaleString()}</span>
               </div>
-              {isPlaying && <div className="text-[10px] font-black italic text-primary animate-pulse pr-2">SCORE: {score}</div>}
+              {gameState === 'PLAYING' && <div className="text-[10px] font-black italic text-primary animate-pulse pr-2">SCORE: {score}</div>}
           </div>
       </div>
 
       {/* Main Play UI */}
-      {activeTab === 'play' && !isPlaying && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center z-[1500] bg-black/40 backdrop-blur-[2px] px-6 text-center">
-            {gameState === 'HOME' && (
-                <div className="flex flex-col items-center">
-                    <h1 className="text-7xl font-black italic mb-12 leading-none tracking-tighter text-white drop-shadow-glow">HELIX<br/>EMPIRE</h1>
-                    <button onClick={startGame} className="w-64 h-24 bg-primary text-white rounded-full text-4xl font-black italic shadow-glow active:scale-95 transition-all">PLAY</button>
-                    <div className="mt-12 flex gap-8 text-[12px] font-black uppercase tracking-widest opacity-40">
-                        <span className="cursor-pointer hover:text-white" onClick={() => Browser.open({url: 'https://viralsnap.online/privacy'})}>Privacy</span>
-                        <span className="cursor-pointer hover:text-white" onClick={() => Browser.open({url: 'https://viralsnap.online/terms'})}>Terms</span>
-                    </div>
-                </div>
-            )}
-            {gameState === 'WIN' && (
-                <div className="flex flex-col items-center animate-in zoom-in duration-300">
-                    <Trophy className="h-24 w-24 text-yellow-400 mb-6 drop-shadow-glow" />
-                    <h2 className="text-6xl font-black mb-12 italic text-white drop-shadow-2xl uppercase leading-tight">Stage<br/>Clear</h2>
-                    <button onClick={() => { setGameState('HOME'); setLevel(l => l + 1); }} className="w-72 py-8 bg-white text-black rounded-[40px] font-black text-2xl active:scale-95 transition-all shadow-2xl uppercase tracking-tighter">Next Stage</button>
-                </div>
-            )}
-            {gameState === 'REVIVE' && (
-                <div className="flex flex-col items-center w-full animate-in zoom-in duration-300">
-                    <h2 className="text-6xl font-black mb-8 italic text-red-500 drop-shadow-glow uppercase">Crash</h2>
-                    <button onClick={() => { setGameState('HOME'); setLevel(1); }} className="w-full max-w-xs py-6 border-4 border-white/10 bg-white/5 rounded-[30px] font-black text-xl active:scale-95 transition-all opacity-40 italic uppercase">Try Again</button>
-                </div>
-            )}
+      {activeTab === 'play' && gameState !== 'PLAYING' && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center z-[3000] bg-black/40 backdrop-blur-[2px] px-6 text-center">
+            <h1 className="text-7xl font-black italic mb-12 leading-none tracking-tighter text-white drop-shadow-glow">HELIX<br/>EMPIRE</h1>
+            <button onClick={startGame} className="w-64 h-24 bg-primary text-white rounded-full text-4xl font-black italic shadow-glow active:scale-95 transition-all">PLAY</button>
+            <div className="mt-12 flex gap-8 text-[12px] font-black uppercase tracking-widest opacity-40">
+                <span className="cursor-pointer hover:text-white" onClick={() => Browser.open({url: 'https://viralsnap.online/privacy'})}>Privacy</span>
+                <span className="cursor-pointer hover:text-white" onClick={() => Browser.open({url: 'https://viralsnap.online/terms'})}>Terms</span>
+            </div>
         </div>
+      )}
+
+      {/* Game State Overlays (Win/Loss) */}
+      {gameState === 'WIN' && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center z-[4000] bg-black/60 backdrop-blur-[4px] px-6 text-center animate-in fade-in zoom-in duration-300">
+              <Trophy className="h-24 w-24 text-yellow-400 mb-6 drop-shadow-glow" />
+              <h2 className="text-6xl font-black mb-12 italic text-white drop-shadow-2xl uppercase leading-tight">Stage<br/>Clear</h2>
+              <button onClick={() => { setGameState('HOME'); setLevel(l => l + 1); }} className="w-72 py-8 bg-white text-black rounded-[40px] font-black text-2xl active:scale-95 transition-all shadow-2xl uppercase tracking-tighter">Next Stage</button>
+          </div>
+      )}
+      {gameState === 'REVIVE' && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center z-[4000] bg-black/60 backdrop-blur-[4px] px-6 text-center animate-in fade-in zoom-in duration-300">
+              <h2 className="text-6xl font-black mb-8 italic text-red-500 drop-shadow-glow uppercase">Crash</h2>
+              <button onClick={handleRevive} disabled={isAdLoading} className="w-full max-w-xs py-6 bg-green-500 text-white rounded-[30px] font-black text-xl mb-4 shadow-lg active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-3">
+                  {isAdLoading ? <Loader2 className="animate-spin" /> : <Sparkles className="h-6 w-6" />}
+                  {isAdLoading ? "SYNCING..." : "REVIVE WITH AD"}
+              </button>
+              <button onClick={() => { setGameState('HOME'); setLevel(1); }} className="w-full max-w-xs py-6 border-4 border-white/10 bg-white/5 rounded-[30px] font-black text-xl active:scale-95 transition-all opacity-40 italic uppercase">Try Again</button>
+          </div>
       )}
 
       <GameUI
@@ -254,13 +267,13 @@ function GamePage() {
             setCurrentSkin(s);
             if (engineRef.current) engineRef.current.setSkin(s);
         }}
-        isHidden={isPlaying}
+        isHidden={gameState === 'PLAYING'}
       />
 
       {/* Navigation */}
       <nav className={cn(
         "fixed bottom-0 left-0 right-0 h-24 bg-black/95 backdrop-blur-3xl border-t border-white/10 flex items-center justify-around px-2 py-6 pb-10 pointer-events-auto transition-transform duration-500 z-[3000]",
-        isPlaying && activeTab === 'play' ? "translate-y-full" : "translate-y-0"
+        gameState === 'PLAYING' && activeTab === 'play' ? "translate-y-full" : "translate-y-0"
       )}>
         <NavButton icon={Box} label="Skins" active={activeTab === 'inventory'} onClick={() => setActiveTab('inventory')} />
         <NavButton icon={ShoppingBag} label="Shop" active={activeTab === 'store'} onClick={() => setActiveTab('store')} />
@@ -282,11 +295,4 @@ function NavButton({ icon: Icon, label, active, onClick }: { icon: any, label: s
       <span className={cn("text-[8px] font-black uppercase tracking-widest", active ? "opacity-100" : "opacity-40")}>{label}</span>
     </button>
   );
-}
-
-// ICON STUBS (Imported from lucide but defined here for safety)
-function Box(props: any) {
-    return (
-        <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>
-    )
 }
