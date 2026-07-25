@@ -1,5 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useEffect, useRef, useState, useCallback } from 'react'
+import { cn } from '@/lib/utils'
 import { HelixEngine } from '@/game/HelixEngine'
 import { GameUI } from '@/components/GameUI'
 import { useAuth } from '@/hooks/use-auth'
