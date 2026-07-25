@@ -51,7 +51,7 @@ function GamePage() {
   const handleReviveSuccess = useCallback(() => {
     setGameState('PLAYING');
     setIsAdLoading(false);
-    if (engineRef.current) engineRef.current.setPaused(false);
+    if (engineRef.current) engineRef.current.start();
     if (audioRef.current) audioRef.current.play().catch(() => {});
   }, []);
 
@@ -59,7 +59,6 @@ function GamePage() {
   useEffect(() => {
     if (!containerRef.current || !user) return
 
-    // We only want the engine to exist if we are on the play tab
     if (activeTab !== 'play') {
         if (engineRef.current) {
             engineRef.current.dispose();
@@ -89,11 +88,7 @@ function GamePage() {
         engine.setSkin(currentSkin);
         engine.setupLevel(level);
     }
-
-    return () => {
-        // We don't always want to dispose on re-render, only when unmounting or tab changes
-    }
-  }, [user, activeTab, level, currentSkin]);
+  }, [user, activeTab, level, currentSkin, addJumpPoints, addViralCoins, score]);
 
   const startGame = () => {
     if (audioRef.current) {
@@ -109,8 +104,9 @@ function GamePage() {
     setScore(0);
     setGameState('PLAYING');
 
+    // Crucial: ensure engine starts
     if (engineRef.current) {
-        engineRef.current.setPaused(false);
+        engineRef.current.start();
     }
   }
 
@@ -140,7 +136,6 @@ function GamePage() {
       } catch (err: any) { toast.error(err.message); }
   }
 
-  // Handle Tab Change to Reset Game State if needed
   const handleTabChange = (tab: 'play' | 'inventory' | 'store' | 'event') => {
       if (gameState === 'WIN') {
           setLevel(l => l + 1);
@@ -193,7 +188,7 @@ function GamePage() {
   }
 
   return (
-    <div className="relative w-full h-[100dvh] overflow-hidden bg-black text-white">
+    <div className="relative w-full h-[100dvh] overflow-hidden bg-black text-white font-sans">
       {/* 3D Engine Layer - BOTTOM */}
       <div ref={containerRef} className="absolute inset-0 z-0" />
 
@@ -235,13 +230,13 @@ function GamePage() {
       {activeTab === 'play' && gameState === 'WIN' && (
           <div className="absolute inset-0 flex flex-col items-center justify-center z-[6000] bg-black/60 backdrop-blur-[4px] px-6 text-center animate-in fade-in zoom-in duration-300">
               <Trophy className="h-24 w-24 text-yellow-400 mb-6 drop-shadow-glow" />
-              <h2 className="text-6xl font-black mb-12 italic text-white drop-shadow-2xl uppercase leading-tight">Stage<br/>Clear</h2>
+              <h2 className="text-6xl font-black mb-12 italic text-white drop-shadow-2xl uppercase leading-tight text-center">Stage<br/>Clear</h2>
               <button onClick={() => { setGameState('HOME'); setLevel(l => l + 1); }} className="w-72 py-8 bg-white text-black rounded-[40px] font-black text-2xl active:scale-95 transition-all shadow-2xl uppercase tracking-tighter">Next Stage</button>
           </div>
       )}
       {activeTab === 'play' && gameState === 'REVIVE' && (
           <div className="absolute inset-0 flex flex-col items-center justify-center z-[6000] bg-black/60 backdrop-blur-[4px] px-6 text-center animate-in fade-in zoom-in duration-300">
-              <h2 className="text-6xl font-black mb-8 italic text-red-500 drop-shadow-glow uppercase font-black">Crash</h2>
+              <h2 className="text-6xl font-black mb-8 italic text-red-500 drop-shadow-glow uppercase font-black text-center">Crash</h2>
               <button onClick={handleRevive} disabled={isAdLoading} className="w-full max-w-xs py-6 bg-green-500 text-white rounded-[30px] font-black text-xl mb-4 shadow-lg active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-3">
                   {isAdLoading ? <Loader2 className="animate-spin" /> : <Sparkles className="h-6 w-6" />}
                   {isAdLoading ? "SYNCING..." : "REVIVE WITH AD"}
@@ -285,7 +280,7 @@ function NavButton({ icon: Icon, label, active, onClick }: { icon: any, label: s
   return (
     <button onClick={onClick} className={cn("flex flex-col items-center justify-center gap-1 w-20 py-2 transition-all active:scale-90", active ? "text-primary scale-110 font-black" : "text-white/30")}>
       <Icon className={cn("h-6 w-6", active && "fill-current")} />
-      <span className={cn("text-[10px] font-black uppercase tracking-widest", active ? "opacity-100" : "opacity-40")}>{label}</span>
+      <span className={cn("text-[10px] font-black uppercase tracking-widest text-center", active ? "opacity-100" : "opacity-40")}>{label}</span>
     </button>
   );
 }

@@ -18,8 +18,8 @@ export class HelixEngine {
   private raycaster: THREE.Raycaster = new THREE.Raycaster();
 
   private ballVelocity = 0;
-  private jumpForce = 0.28;
-  private gravity = -0.015;
+  private readonly jumpForce = 0.32; // Increased for better bounce
+  private readonly gravity = -0.018;  // Increased for snappier feel
   private isRotating = false;
   private previousMouseX = 0;
 
@@ -48,12 +48,12 @@ export class HelixEngine {
     this.renderer = new THREE.WebGLRenderer({
         antialias: true,
         alpha: false,
-        powerPreference: "high-performance"
+        powerPreference: "default", // More compatible across devices
+        precision: "mediump"      // Better performance on older phones
     });
-    this.renderer.setPixelRatio(window.devicePixelRatio);
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.setSize(width, height);
 
-    // Clean container before appending
     while (this.container.firstChild) this.container.removeChild(this.container.firstChild);
     this.container.appendChild(this.renderer.domElement);
 
@@ -62,7 +62,6 @@ export class HelixEngine {
     sun.position.set(10, 20, 10);
     this.scene.add(sun);
 
-    // Ball
     this.ball = new THREE.Mesh(
         new THREE.SphereGeometry(0.6, 32, 32),
         new THREE.MeshStandardMaterial({
@@ -102,18 +101,19 @@ export class HelixEngine {
     }
   };
 
+  /**
+   * Explicitly starts the game physics
+   */
+  public start() {
+    this.isPaused = false;
+    this.autoRotate = false;
+    this.ballVelocity = -0.05; // Give it a little nudge
+    console.log("Helix Engine Started");
+  }
+
   public setPaused(val: boolean) {
-    console.log("Engine setPaused:", val);
     this.isPaused = val;
-    if (!val) {
-        this.autoRotate = false;
-        // Ensure ball is moving
-        if (this.ballVelocity >= 0) {
-            this.ballVelocity = -0.1;
-        }
-    } else {
-        this.autoRotate = true;
-    }
+    this.autoRotate = val;
   }
 
   public setupLevel(level: number) {
@@ -189,12 +189,12 @@ export class HelixEngine {
     this.animationId = requestAnimationFrame(this.animate);
 
     if (this.autoRotate) {
-        this.tower.rotation.y += 0.01;
+        this.tower.rotation.y += 0.005;
     }
 
     if (!this.isPaused) {
         this.ballVelocity += this.gravity;
-        if (this.ballVelocity < -0.4) this.ballVelocity = -0.4;
+        if (this.ballVelocity < -0.5) this.ballVelocity = -0.5;
         this.ball.position.y += this.ballVelocity;
         this.camera.position.y = this.ball.position.y + 12;
         this.checkCollisions();
@@ -208,7 +208,7 @@ export class HelixEngine {
     if (!this.ball || !this.tower || this.ballVelocity > 0) return;
     this.raycaster.set(this.ball.position, new THREE.Vector3(0, -1, 0));
     const hits = this.raycaster.intersectObjects(this.tower.children, true);
-    if (hits.length > 0 && hits[0].distance < 0.6) {
+    if (hits.length > 0 && hits[0].distance < 0.65) {
         const obj = hits[0].object;
         if (obj.userData.isWinPlatform) {
             this.isPaused = true;
@@ -220,7 +220,10 @@ export class HelixEngine {
             this.state.onLoss();
             return;
         }
+
+        // Dynamic bounce
         this.ballVelocity = this.jumpForce;
+
         if (this.lastHitPlatform !== obj.parent) {
             this.state.onScoreUpdate(10);
             this.lastHitPlatform = obj.parent;
