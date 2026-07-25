@@ -19,16 +19,17 @@ function GamePage() {
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const { user, profile, signIn, signInWithGoogle, signUp, addJumpPoints, addViralCoins, loading, fetchProfile } = useAuth()
 
+  // Correct Helix Empire Master States
   const [activeTab, setActiveTab] = useState<'play' | 'inventory' | 'store' | 'event'>('play')
   const [gameState, setGameState] = useState<'HOME' | 'PLAYING' | 'REVIVE' | 'WIN'>('HOME')
   const [score, setScore] = useState(0)
-  const scoreRef = useRef(0)
   const [level, setLevel] = useState(1)
   const [currentSkin, setCurrentSkin] = useState('fire')
   const [isAdLoading, setIsAdLoading] = useState(false)
 
-  useEffect(() => { scoreRef.current = score; }, [score]);
+  const isPlaying = gameState === 'PLAYING';
 
+  // Ad Setup
   useEffect(() => {
     if (!user || !Capacitor.isNativePlatform()) return;
     const initAds = async () => {
@@ -53,8 +54,27 @@ function GamePage() {
     if (audioRef.current) audioRef.current.play().catch(() => {});
   }, []);
 
+  // Global Ad Listeners
   useEffect(() => {
-    if (!containerRef.current || activeTab !== 'play' || !user) return;
+    if (!user || !Capacitor.isNativePlatform()) return;
+
+    const rListener = AdMob.addListener(RewardAdPluginEvents.Rewarded, () => handleReviveSuccess());
+    const failedListener = AdMob.addListener(RewardAdPluginEvents.FailedToLoad, () => setIsAdLoading(false));
+    const dismissedListener = AdMob.addListener(RewardAdPluginEvents.Dismissed, () => {
+        setIsAdLoading(false);
+        AdMob.prepareRewardVideoAd({ adId: 'ca-app-pub-3940256099942544/5224354917' }).catch(()=>{});
+    });
+
+    return () => {
+        rListener.remove();
+        failedListener.remove();
+        dismissedListener.remove();
+    };
+  }, [user, handleReviveSuccess]);
+
+  // Game Engine Lifecycle
+  useEffect(() => {
+    if (!containerRef.current || activeTab !== 'play' || !user) return
     if (engineRef.current) engineRef.current.dispose();
 
     const engine = new HelixEngine(containerRef.current, {
@@ -63,10 +83,9 @@ function GamePage() {
       onWin: async () => {
           setGameState('WIN');
           audioRef.current?.pause();
-          if (scoreRef.current > 0) {
-              await addJumpPoints(scoreRef.current);
-              await addViralCoins(50);
-          }
+          await addJumpPoints(score);
+          await addViralCoins(50);
+          if (Capacitor.isNativePlatform()) AdMob.showInterstitialAd().catch(() => {});
       },
       onLoss: () => {
           setGameState('REVIVE');
@@ -75,7 +94,7 @@ function GamePage() {
       onScoreUpdate: (pts) => setScore(prev => prev + pts)
     })
 
-    engineRef.current = engine;
+    engineRef.current = engine
     engine.setSkin(currentSkin);
     engine.setupLevel(level);
 
@@ -100,7 +119,7 @@ function GamePage() {
     setGameState('PLAYING');
     setTimeout(() => {
         if (engineRef.current) engineRef.current.setPaused(false);
-    }, 200);
+    }, 150);
   }
 
   const handleRevive = async () => {
@@ -138,31 +157,31 @@ function GamePage() {
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-[0.05] z-0">
                 <span className="text-[80vh] font-black italic select-none">H</span>
               </div>
-              <div className="relative z-10 w-full max-w-sm flex flex-col items-center">
-                  <img src="/logo.png" className="w-48 h-48 mb-6 drop-shadow-glow" alt="Logo" />
-                  <h1 className="text-7xl font-black italic mb-2 text-primary tracking-tighter drop-shadow-glow">HELIX</h1>
+              <div className="relative z-10 w-full max-w-sm flex flex-col items-center text-center">
+                  <img src="/logo.png" className="w-40 h-40 mb-6 drop-shadow-glow" alt="Logo" />
+                  <h1 className="text-7xl font-black italic mb-2 text-primary tracking-tighter drop-shadow-glow leading-none">HELIX</h1>
                   <p className="text-white/40 uppercase tracking-[0.4em] text-[9px] mb-12 font-bold italic">Empire Rewards System</p>
                   <form onSubmit={handleAuth} className="w-full space-y-3 pb-64">
                       {!isLogin && (
                           <div className="bg-white/5 border border-white/10 rounded-2xl flex items-center px-4 py-4 backdrop-blur-md">
                               <UserIcon className="h-5 w-5 text-white/20 mr-3" />
-                              <input type="text" placeholder="Username" className="bg-transparent outline-none w-full font-bold text-white" value={username} onChange={e => setUsername(e.target.value)} required />
+                              <input type="text" placeholder="Username" className="bg-transparent outline-none w-full font-bold" value={username} onChange={e => setUsername(e.target.value)} required />
                           </div>
                       )}
                       <div className="bg-white/5 border border-white/10 rounded-2xl flex items-center px-4 py-4 backdrop-blur-md">
                           <Mail className="h-5 w-5 text-white/40 mr-3" />
-                          <input type="email" placeholder="Email" className="bg-transparent outline-none w-full font-bold text-white" value={email} onChange={e => setEmail(e.target.value)} required />
+                          <input type="email" placeholder="Email" className="bg-transparent outline-none w-full font-bold" value={email} onChange={e => setEmail(e.target.value)} required />
                       </div>
                       <div className="bg-white/5 border border-white/10 rounded-2xl flex items-center px-4 py-4 backdrop-blur-md">
                           <Lock className="h-5 w-5 text-white/40 mr-3" />
-                          <input type={showPassword ? "text" : "password"} placeholder="Password" name="password" className="bg-transparent outline-none w-full font-bold text-white" value={password} onChange={e => setPassword(e.target.value)} required />
+                          <input type={showPassword ? "text" : "password"} placeholder="Password" name="password" className="bg-transparent outline-none w-full font-bold" value={password} onChange={e => setPassword(e.target.value)} required />
                           <button type="button" onClick={() => setShowPassword(!showPassword)} className="text-white/20 px-2">{showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}</button>
                       </div>
                       <button type="submit" className="w-full bg-primary py-5 rounded-3xl font-black uppercase tracking-widest shadow-glow active:scale-95 transition-all mt-4 text-white">
                           {isLogin ? 'Login' : 'Create Account'}
                       </button>
                       <button type="button" onClick={() => setIsLogin(!isLogin)} className="w-full text-center text-white/40 font-bold text-xs uppercase tracking-widest mt-6 underline">
-                          {isLogin ? "Need an account? Sign Up" : "Back to Login"}
+                          {isLogin ? "Join the Empire" : "Back to Login"}
                       </button>
                   </form>
               </div>
@@ -172,9 +191,11 @@ function GamePage() {
 
   return (
     <div className="relative w-full h-[100dvh] overflow-hidden bg-black text-white">
+      {/* 3D Engine Layer */}
       <div ref={containerRef} className="absolute inset-0 z-10" />
 
-      {gameState !== 'PLAYING' && (
+      {/* Cinematic Logo Layer */}
+      {!isPlaying && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
              <span className="text-[80vh] font-black italic opacity-[0.08] shadow-x-glow animate-pulse select-none">H</span>
           </div>
@@ -191,13 +212,13 @@ function GamePage() {
                   <Zap className="h-4 w-4 text-blue-400" />
                   <span className="font-black text-sm">{(profile?.jump_balance || 0).toLocaleString()}</span>
               </div>
-              {gameState === 'PLAYING' && <div className="text-[10px] font-black italic text-primary animate-pulse pr-2">SCORE: {score}</div>}
+              {isPlaying && <div className="text-[10px] font-black italic text-primary animate-pulse pr-2">SCORE: {score}</div>}
           </div>
       </div>
 
-      {/* Main Play UI - Ensure high Z index */}
-      {activeTab === 'play' && gameState !== 'PLAYING' && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center z-[3000] bg-black/40 backdrop-blur-[2px] px-6 text-center">
+      {/* Main Play UI */}
+      {activeTab === 'play' && !isPlaying && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center z-[1500] bg-black/40 backdrop-blur-[2px] px-6 text-center">
             {gameState === 'HOME' && (
                 <div className="flex flex-col items-center">
                     <h1 className="text-7xl font-black italic mb-12 leading-none tracking-tighter text-white drop-shadow-glow">HELIX<br/>EMPIRE</h1>
@@ -232,8 +253,23 @@ function GamePage() {
             setCurrentSkin(s);
             if (engineRef.current) engineRef.current.setSkin(s);
         }}
-        isHidden={gameState === 'PLAYING'}
+        isHidden={isPlaying}
       />
+
+      {/* Navigation */}
+      <nav className={cn(
+        "fixed bottom-0 left-0 right-0 h-24 bg-black/95 backdrop-blur-3xl border-t border-white/10 flex items-center justify-around px-2 py-6 pb-10 pointer-events-auto transition-transform duration-500 z-[3000]",
+        isPlaying && activeTab === 'play' ? "translate-y-full" : "translate-y-0"
+      )}>
+        <NavButton icon={Box} label="Skins" active={activeTab === 'inventory'} onClick={() => setActiveTab('inventory')} />
+        <NavButton icon={ShoppingBag} label="Shop" active={activeTab === 'store'} onClick={() => setActiveTab('store')} />
+        <NavButton icon={Award} label="Win" active={activeTab === 'event'} onClick={() => setActiveTab('event')} />
+        {activeTab !== 'play' && (
+            <button onClick={() => setActiveTab('play')} className="bg-primary p-4 rounded-full shadow-glow active:scale-90 transition-transform">
+                <span className="font-black text-xs uppercase italic px-4 text-white">Exit</span>
+            </button>
+        )}
+      </nav>
     </div>
   )
 }
@@ -245,4 +281,11 @@ function NavButton({ icon: Icon, label, active, onClick }: { icon: any, label: s
       <span className={cn("text-[8px] font-black uppercase tracking-widest", active ? "opacity-100" : "opacity-40")}>{label}</span>
     </button>
   );
+}
+
+// ICON STUBS (Imported from lucide but defined here for safety)
+function Box(props: any) {
+    return (
+        <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>
+    )
 }
