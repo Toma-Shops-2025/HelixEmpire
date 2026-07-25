@@ -37,11 +37,8 @@ export class HelixEngine {
 
   private init() {
     this.scene = new THREE.Scene();
-
-    // Explicitly set a dark background
     this.scene.background = new THREE.Color(0x02020a);
 
-    // Use absolute window dimensions as fallback
     const width = window.innerWidth;
     const height = window.innerHeight;
 
@@ -51,16 +48,16 @@ export class HelixEngine {
     this.renderer = new THREE.WebGLRenderer({
         antialias: true,
         alpha: false,
-        powerPreference: "default"
+        powerPreference: "high-performance"
     });
     this.renderer.setPixelRatio(window.devicePixelRatio);
     this.renderer.setSize(width, height);
 
+    // Clean container before appending
     while (this.container.firstChild) this.container.removeChild(this.container.firstChild);
     this.container.appendChild(this.renderer.domElement);
 
-    // High-Intensity Lighting
-    this.scene.add(new THREE.AmbientLight(0xffffff, 0.8));
+    this.scene.add(new THREE.AmbientLight(0xffffff, 1.0));
     const sun = new THREE.DirectionalLight(0xffffff, 1.5);
     sun.position.set(10, 20, 10);
     this.scene.add(sun);
@@ -71,7 +68,7 @@ export class HelixEngine {
         new THREE.MeshStandardMaterial({
             color: 0xff4500,
             emissive: 0xff0000,
-            emissiveIntensity: 1.0
+            emissiveIntensity: 1.2
         })
     );
     this.ball.position.set(0, 10, 5);
@@ -80,7 +77,6 @@ export class HelixEngine {
     this.tower = new THREE.Group();
     this.scene.add(this.tower);
 
-    // Core Column
     const column = new THREE.Mesh(
         new THREE.CylinderGeometry(1.2, 1.2, 3000, 32),
         new THREE.MeshStandardMaterial({ color: 0x111111 })
@@ -107,10 +103,16 @@ export class HelixEngine {
   };
 
   public setPaused(val: boolean) {
+    console.log("Engine setPaused:", val);
     this.isPaused = val;
     if (!val) {
         this.autoRotate = false;
-        this.ballVelocity = -0.1;
+        // Ensure ball is moving
+        if (this.ballVelocity >= 0) {
+            this.ballVelocity = -0.1;
+        }
+    } else {
+        this.autoRotate = true;
     }
   }
 
@@ -118,7 +120,6 @@ export class HelixEngine {
     if (!this.tower || !this.ball) return;
     this.state.level = level;
 
-    // Clear old level
     const toRemove = this.tower.children.filter(c => c.userData.isLevelObject);
     toRemove.forEach(c => this.tower?.remove(c));
 
@@ -132,6 +133,8 @@ export class HelixEngine {
     this.ball.position.y = 10;
     this.ballVelocity = 0;
     this.lastHitPlatform = null;
+    this.isPaused = true;
+    this.autoRotate = true;
   }
 
   private createPlatform(y: number, color: number, isWin: boolean, isFirst: boolean) {
@@ -153,7 +156,7 @@ export class HelixEngine {
       const mat = new THREE.MeshStandardMaterial({
           color: isWin ? 0xffaa00 : (isHazard ? 0xff0000 : color),
           emissive: isWin ? 0xffaa00 : (isHazard ? 0xff0000 : color),
-          emissiveIntensity: 0.4
+          emissiveIntensity: 0.6
       });
       const segment = new THREE.Mesh(geo, mat);
       segment.userData = { isHazard, isWinPlatform: isWin, isPlatform: true };
@@ -185,7 +188,9 @@ export class HelixEngine {
     if (!this.renderer || !this.scene || !this.camera || !this.ball || !this.tower) return;
     this.animationId = requestAnimationFrame(this.animate);
 
-    if (this.autoRotate) this.tower.rotation.y += 0.01;
+    if (this.autoRotate) {
+        this.tower.rotation.y += 0.01;
+    }
 
     if (!this.isPaused) {
         this.ballVelocity += this.gravity;
@@ -203,10 +208,18 @@ export class HelixEngine {
     if (!this.ball || !this.tower || this.ballVelocity > 0) return;
     this.raycaster.set(this.ball.position, new THREE.Vector3(0, -1, 0));
     const hits = this.raycaster.intersectObjects(this.tower.children, true);
-    if (hits.length > 0 && hits[0].distance < 0.5) {
+    if (hits.length > 0 && hits[0].distance < 0.6) {
         const obj = hits[0].object;
-        if (obj.userData.isWinPlatform) { this.isPaused = true; this.state.onWin(); return; }
-        if (obj.userData.isHazard) { this.isPaused = true; this.state.onLoss(); return; }
+        if (obj.userData.isWinPlatform) {
+            this.isPaused = true;
+            this.state.onWin();
+            return;
+        }
+        if (obj.userData.isHazard) {
+            this.isPaused = true;
+            this.state.onLoss();
+            return;
+        }
         this.ballVelocity = this.jumpForce;
         if (this.lastHitPlatform !== obj.parent) {
             this.state.onScoreUpdate(10);
