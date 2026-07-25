@@ -21,6 +21,7 @@ npx cap sync android
 
 Step "Building Android APK..."
 Set-Location "$ProjectPath\android"
+& .\gradlew.bat --stop
 & .\gradlew.bat clean
 & .\gradlew.bat assembleRelease "-Pandroid.injected.signing.store.file=$KeystorePath" "-Pandroid.injected.signing.store.password=$Password" "-Pandroid.injected.signing.key.alias=$KeyAlias" "-Pandroid.injected.signing.key.password=$Password"
 
