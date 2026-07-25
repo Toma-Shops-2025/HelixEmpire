@@ -6,7 +6,7 @@ import { useAuth } from '@/hooks/use-auth'
 import { AdMob, BannerAdPosition, BannerAdSize, RewardAdPluginEvents } from '@capacitor-community/admob'
 import { Browser } from '@capacitor/browser'
 import { Capacitor } from '@capacitor/core'
-import { Coins, Zap, Mail, Lock, User as UserIcon, Eye, EyeOff, Loader2, Sparkles, Trophy, LogIn } from 'lucide-react'
+import { Coins, Zap, Mail, Lock, User as UserIcon, Eye, EyeOff, Loader2, Sparkles, Trophy } from 'lucide-react'
 import { toast } from 'sonner'
 
 export const Route = createFileRoute('/')({
@@ -17,7 +17,7 @@ function GamePage() {
   const containerRef = useRef<HTMLDivElement>(null)
   const engineRef = useRef<HelixEngine | null>(null)
   const audioRef = useRef<HTMLAudioElement | null>(null)
-  const { user, profile, signIn, signInWithGoogle, signUp, addJumpPoints, addViralCoins, supabase, loading, fetchProfile } = useAuth()
+  const { user, profile, signIn, signInWithGoogle, signUp, addJumpPoints, addViralCoins, loading, fetchProfile } = useAuth()
 
   // Master State
   const [activeTab, setActiveTab] = useState<'play' | 'inventory' | 'store' | 'event' | 'store_pack' | 'store_coins' | 'catalog' | 'how_to_play' | 'faq'>('play')
@@ -26,13 +26,7 @@ function GamePage() {
   const scoreRef = useRef(0)
   const [level, setLevel] = useState(1)
   const [currentSkin, setCurrentSkin] = useState('fire')
-  const [levelCounter, setLevelCounter] = useState(0)
   const [isAdLoading, setIsAdLoading] = useState(false)
-  const [isAdPlaying, setIsAdPlaying] = useState(false)
-  const isAdPlayingRef = useRef(false)
-
-  // Sync refs
-  useEffect(() => { isAdPlayingRef.current = isAdPlaying; }, [isAdPlaying]);
 
   // Auth States
   const [isLogin, setIsLogin] = useState(true)
@@ -45,16 +39,16 @@ function GamePage() {
   // Sync scoreRef
   useEffect(() => { scoreRef.current = score; }, [score]);
 
-  // Sync Balance when opening Win tab
+  // Sync Balance
   useEffect(() => {
       if (activeTab === 'event' && user) {
           fetchProfile(user.id);
       }
   }, [activeTab, user, fetchProfile]);
 
-  // Persistent Ad Setup
+  // Ad Setup
   useEffect(() => {
-    if (!user) return;
+    if (!user || !Capacitor.isNativePlatform()) return;
     const initAds = async () => {
         try {
             await AdMob.initialize();
@@ -75,40 +69,18 @@ function GamePage() {
   const handleReviveSuccess = useCallback(() => {
     setGameState('PLAYING');
     setIsAdLoading(false);
-    setIsAdPlaying(false);
     if (engineRef.current) engineRef.current.setPaused(false);
+    if (audioRef.current) audioRef.current.play().catch(() => {});
+  }, []);
 
-    // Smooth delay before music resumes to prevent stuttering
-    setTimeout(() => {
-        if (audioRef.current && !isAdPlayingRef.current) {
-            audioRef.current.play().catch(() => {});
-        }
-    }, 800);
-  }, [isAdPlaying]);
-
-  // Global Ad Listeners
   useEffect(() => {
-    if (!user) return;
+    if (!user || !Capacitor.isNativePlatform()) return;
 
-    const rListener = AdMob.addListener(RewardAdPluginEvents.Rewarded, () => {
-        handleReviveSuccess();
-    });
-
-    const failedListener = AdMob.addListener(RewardAdPluginEvents.FailedToLoad, () => {
-        setIsAdLoading(false);
-        setIsAdPlaying(false);
-    });
-
+    const rListener = AdMob.addListener(RewardAdPluginEvents.Rewarded, () => handleReviveSuccess());
+    const failedListener = AdMob.addListener(RewardAdPluginEvents.FailedToLoad, () => setIsAdLoading(false));
     const dismissedListener = AdMob.addListener(RewardAdPluginEvents.Dismissed, () => {
         setIsAdLoading(false);
-        setIsAdPlaying(false);
-        // Prepare next ads immediately
         AdMob.prepareRewardVideoAd({ adId: 'ca-app-pub-3940256099942544/5224354917' }).catch(()=>{});
-        AdMob.prepareInterstitialAd({ adId: 'ca-app-pub-3940256099942544/1033173712' }).catch(()=>{});
-
-        setTimeout(() => {
-            if (audioRef.current) audioRef.current.play().catch(() => {});
-        }, 800);
     });
 
     return () => {
@@ -121,6 +93,8 @@ function GamePage() {
   // Game Engine Lifecycle
   useEffect(() => {
     if (!containerRef.current || activeTab !== 'play' || !user) return
+
+    // Dispose old engine
     if (engineRef.current) engineRef.current.dispose();
 
     const engine = new HelixEngine(containerRef.current, {
@@ -129,19 +103,13 @@ function GamePage() {
       onWin: async () => {
           setGameState('WIN');
           audioRef.current?.pause();
-
           if (scoreRef.current > 0) {
               await addJumpPoints(scoreRef.current);
               await addViralCoins(50);
           }
-
-          setLevelCounter(prev => {
-              const next = prev + 1;
-              if (next % 3 === 0) {
-                  AdMob.showInterstitialAd().catch(() => {});
-              }
-              return next;
-          });
+          if (Capacitor.isNativePlatform()) {
+              AdMob.showInterstitialAd().catch(() => {});
+          }
       },
       onLoss: () => {
           setGameState('REVIVE');
@@ -149,6 +117,7 @@ function GamePage() {
       },
       onScoreUpdate: (pts) => setScore(prev => prev + pts)
     })
+
     engineRef.current = engine
     engine.setSkin(currentSkin);
     engine.setupLevel(level);
@@ -169,9 +138,14 @@ function GamePage() {
     audio.loop = true;
     audio.play().catch(() => {});
     audioRef.current = audio;
+
     setScore(0);
     setGameState('PLAYING');
-    setTimeout(() => engineRef.current?.setPaused(false), 150);
+
+    // Give engine a moment to wake up
+    setTimeout(() => {
+        if (engineRef.current) engineRef.current.setPaused(false);
+    }, 200);
   }
 
   const handleRevive = async () => {
@@ -179,8 +153,6 @@ function GamePage() {
     if (!Capacitor.isNativePlatform()) return handleReviveSuccess();
 
     setIsAdLoading(true);
-    setIsAdPlaying(true);
-    if (audioRef.current) audioRef.current.pause();
     try {
         await AdMob.showRewardVideoAd();
     } catch (e) {
@@ -199,23 +171,26 @@ function GamePage() {
 
   if (loading) {
       return (
-          <div className="h-screen w-full bg-[#050510] flex items-center justify-center text-white">
-              <Loader2 className="animate-spin text-primary h-12 w-12" />
+          <div className="h-screen w-full bg-black flex items-center justify-center text-white font-black italic">
+              <div className="flex flex-col items-center gap-4">
+                <Loader2 className="animate-spin text-primary h-12 w-12" />
+                <span className="text-xs uppercase tracking-[0.4em] opacity-40">Connecting to Empire...</span>
+              </div>
           </div>
       )
   }
 
   if (!user) {
       return (
-          <div className="h-[100dvh] w-full bg-[#050510] flex flex-col items-center justify-start p-8 pt-32 text-white overflow-y-auto no-scrollbar">
-              <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-[0.03] z-0">
-                <span className="text-[90vh] font-black italic select-none">H</span>
+          <div className="h-[100dvh] w-full bg-black flex flex-col items-center justify-start p-8 pt-32 text-white overflow-y-auto no-scrollbar">
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-[0.05] z-0">
+                <span className="text-[80vh] font-black italic select-none">H</span>
               </div>
 
               <div className="relative z-10 w-full max-w-sm flex flex-col items-center">
                   <img src="/logo.png" className="w-48 h-48 mb-6 drop-shadow-glow" alt="Logo" />
                   <h1 className="text-7xl font-black italic mb-2 text-primary tracking-tighter drop-shadow-glow">HELIX</h1>
-                  <p className="text-white/40 uppercase tracking-[0.4em] text-[9px] mb-12 font-bold">Empire Rewards System</p>
+                  <p className="text-white/40 uppercase tracking-[0.4em] text-[9px] mb-12 font-bold italic">Empire Rewards System</p>
 
                   <form onSubmit={handleAuth} className="w-full space-y-3 pb-64">
                       {!isLogin && (
@@ -238,7 +213,7 @@ function GamePage() {
                       {!isLogin && (
                           <div className="flex items-center gap-3 px-2 py-2">
                               <input type="checkbox" id="terms" checked={agreed} onChange={e => setAgreed(e.target.checked)} className="accent-primary h-4 w-4" />
-                              <label htmlFor="terms" className="text-[10px] text-white/40 font-bold uppercase underline" onClick={() => Browser.open({url: 'https://viralsnap.online/terms'})}>I agree to Terms</label>
+                              <label htmlFor="terms" className="text-[10px] text-white/40 font-bold uppercase underline">I agree to Terms</label>
                           </div>
                       )}
                       <button type="submit" className="w-full bg-primary py-5 rounded-3xl font-black uppercase tracking-widest shadow-glow active:scale-95 transition-all mt-4">
@@ -271,20 +246,22 @@ function GamePage() {
 
   return (
     <div className="relative w-full h-[100dvh] overflow-hidden bg-black text-white">
+      {/* Cinematic Background Layer */}
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0">
-         <span className="text-[90vh] font-black italic opacity-[0.08] shadow-x-glow animate-float-slow select-none">H</span>
+         <span className="text-[80vh] font-black italic opacity-[0.08] shadow-x-glow animate-pulse select-none">H</span>
       </div>
 
+      {/* 3D Game Layer */}
       <div ref={containerRef} className="absolute inset-0 z-10" />
 
-      {/* HUD */}
+      {/* HUD Layer */}
       <div className="absolute top-12 left-0 right-0 px-6 flex justify-between items-center z-[1000] pointer-events-none">
-          <div className="flex items-center gap-2 bg-black/60 backdrop-blur-xl px-4 py-2 rounded-full border border-white/10 shadow-lg">
+          <div className="flex items-center gap-2 bg-black/40 backdrop-blur-md px-4 py-2 rounded-full border border-white/10 shadow-lg">
               <Coins className="h-4 w-4 text-yellow-400 shadow-glow" />
               <span className="font-black text-sm">{profile?.coin_balance || 0}</span>
           </div>
           <div className="flex flex-col items-end gap-1">
-              <div className="flex items-center gap-2 bg-black/60 backdrop-blur-xl px-4 py-2 rounded-full border border-white/10 shadow-lg">
+              <div className="flex items-center gap-2 bg-black/40 backdrop-blur-md px-4 py-2 rounded-full border border-white/10 shadow-lg">
                   <Zap className="h-4 w-4 text-blue-400" />
                   <span className="font-black text-sm">{(profile?.jump_balance || 0).toLocaleString()}</span>
               </div>
@@ -292,10 +269,11 @@ function GamePage() {
           </div>
       </div>
 
+      {/* Play Screens Layer */}
       {activeTab === 'play' && gameState !== 'PLAYING' && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center z-[500] bg-black/50 backdrop-blur-[2px] px-6 text-center">
+        <div className="absolute inset-0 flex flex-col items-center justify-center z-[500] bg-black/60 backdrop-blur-[4px] px-6 text-center">
             {gameState === 'HOME' && (
-                <div className="animate-in fade-in zoom-in duration-300 flex flex-col items-center">
+                <div className="animate-in fade-in zoom-in duration-500 flex flex-col items-center">
                     <h1 className="text-7xl font-black italic mb-12 leading-none tracking-tighter text-white drop-shadow-glow">HELIX<br/>EMPIRE</h1>
                     <button onClick={startGame} className="w-64 h-24 bg-primary text-white rounded-full text-4xl font-black italic shadow-glow active:scale-95 transition-all">PLAY</button>
                     <div className="mt-12 flex gap-8 text-[12px] font-black uppercase tracking-widest opacity-40 pointer-events-auto">
@@ -305,20 +283,20 @@ function GamePage() {
                 </div>
             )}
             {gameState === 'WIN' && (
-                <div className="animate-in fade-in zoom-in duration-300 flex flex-col items-center">
+                <div className="animate-in fade-in zoom-in duration-500 flex flex-col items-center">
                     <Trophy className="h-24 w-24 text-yellow-400 mb-6 drop-shadow-glow" />
                     <h2 className="text-6xl font-black mb-12 italic text-white drop-shadow-2xl">STAGE CLEAR!</h2>
                     <button onClick={() => { setGameState('HOME'); setLevel(l => l + 1); }} className="w-72 py-8 bg-white text-black rounded-[40px] font-black text-2xl active:scale-95 transition-all shadow-2xl uppercase tracking-tighter">Next Stage</button>
                 </div>
             )}
             {gameState === 'REVIVE' && (
-                <div className="animate-in fade-in zoom-in duration-300 flex flex-col items-center w-full">
-                    <h2 className="text-6xl font-black mb-8 italic text-red-500 drop-shadow-glow">FAILED</h2>
+                <div className="animate-in fade-in zoom-in duration-500 flex flex-col items-center w-full">
+                    <h2 className="text-6xl font-black mb-8 italic text-red-500 drop-shadow-glow uppercase">Crash!</h2>
                     <button onClick={handleRevive} disabled={isAdLoading} className="w-full max-w-xs py-6 bg-green-500 text-white rounded-[30px] font-black text-xl mb-4 shadow-lg active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-3">
                         {isAdLoading ? <Loader2 className="animate-spin" /> : <Sparkles className="h-6 w-6" />}
-                        {isAdLoading ? "LOADING..." : "REVIVE WITH AD"}
+                        {isAdLoading ? "SYNCING..." : "REVIVE WITH AD"}
                     </button>
-                    <button onClick={() => { setGameState('HOME'); setLevel(1); }} className="w-full max-w-xs py-6 border-4 border-white/10 bg-white/5 rounded-[30px] font-black text-xl active:scale-95 transition-all opacity-40 italic">TRY AGAIN</button>
+                    <button onClick={() => { setGameState('HOME'); setLevel(1); }} className="w-full max-w-xs py-6 border-4 border-white/10 bg-white/5 rounded-[30px] font-black text-xl active:scale-95 transition-all opacity-40 italic">SURRENDER</button>
                 </div>
             )}
         </div>
