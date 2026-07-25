@@ -37,40 +37,50 @@ export class HelixEngine {
 
   private init() {
     this.scene = new THREE.Scene();
+
+    // Explicitly set a dark background
     this.scene.background = new THREE.Color(0x02020a);
 
-    const width = this.container.clientWidth || window.innerWidth;
-    const height = this.container.clientHeight || window.innerHeight;
+    // Use absolute window dimensions as fallback
+    const width = window.innerWidth;
+    const height = window.innerHeight;
 
     this.camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 2000);
-    this.camera.position.set(0, 12, 40);
+    this.camera.position.set(0, 15, 45);
 
-    this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+    this.renderer = new THREE.WebGLRenderer({
+        antialias: true,
+        alpha: false,
+        powerPreference: "default"
+    });
     this.renderer.setPixelRatio(window.devicePixelRatio);
     this.renderer.setSize(width, height);
 
     while (this.container.firstChild) this.container.removeChild(this.container.firstChild);
     this.container.appendChild(this.renderer.domElement);
 
+    // High-Intensity Lighting
     this.scene.add(new THREE.AmbientLight(0xffffff, 0.8));
-    const sun = new THREE.DirectionalLight(0xffffff, 1.2);
-    sun.position.set(5, 10, 7);
+    const sun = new THREE.DirectionalLight(0xffffff, 1.5);
+    sun.position.set(10, 20, 10);
     this.scene.add(sun);
 
+    // Ball
     this.ball = new THREE.Mesh(
-        new THREE.SphereGeometry(0.5, 32, 32),
+        new THREE.SphereGeometry(0.6, 32, 32),
         new THREE.MeshStandardMaterial({
             color: 0xff4500,
             emissive: 0xff0000,
             emissiveIntensity: 1.0
         })
     );
-    this.ball.position.set(0, 8.5, 3.5);
+    this.ball.position.set(0, 10, 5);
     this.scene.add(this.ball);
 
     this.tower = new THREE.Group();
     this.scene.add(this.tower);
 
+    // Core Column
     const column = new THREE.Mesh(
         new THREE.CylinderGeometry(1.2, 1.2, 3000, 32),
         new THREE.MeshStandardMaterial({ color: 0x111111 })
@@ -85,12 +95,15 @@ export class HelixEngine {
   }
 
   private onResize = () => {
-    if (!this.container || !this.renderer || !this.camera) return;
-    const width = this.container.clientWidth;
-    const height = this.container.clientHeight;
-    this.camera.aspect = width / height;
-    this.camera.updateProjectionMatrix();
-    this.renderer.setSize(width, height);
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+    if (this.camera) {
+        this.camera.aspect = width / height;
+        this.camera.updateProjectionMatrix();
+    }
+    if (this.renderer) {
+        this.renderer.setSize(width, height);
+    }
   };
 
   public setPaused(val: boolean) {
@@ -105,15 +118,20 @@ export class HelixEngine {
     if (!this.tower || !this.ball) return;
     this.state.level = level;
 
+    // Clear old level
     const toRemove = this.tower.children.filter(c => c.userData.isLevelObject);
     toRemove.forEach(c => this.tower?.remove(c));
 
-    const color = [0xbc13fe, 0xff007f, 0x0077ff, 0x00ffcc][level % 4];
+    const levelColor = [0xbc13fe, 0xff007f, 0x0077ff, 0x00ffcc][level % 4];
+    const spacing = 10;
+
     for (let i = 0; i < 20; i++) {
-        this.createPlatform(5 - (i * 8), color, i === 19, i === 0);
+        this.createPlatform(5 - (i * spacing), levelColor, i === 19, i === 0);
     }
-    this.ball.position.y = 8.5;
+
+    this.ball.position.y = 10;
     this.ballVelocity = 0;
+    this.lastHitPlatform = null;
   }
 
   private createPlatform(y: number, color: number, isWin: boolean, isFirst: boolean) {
@@ -131,7 +149,7 @@ export class HelixEngine {
       const isHazard = !isWin && !isFirst && Math.random() > 0.94;
       const arc = (1 / segments) * Math.PI * 2;
 
-      const geo = new THREE.CylinderGeometry(6, 6, 0.6, 32, 1, false, (i / segments) * Math.PI * 2, arc);
+      const geo = new THREE.CylinderGeometry(8, 8, 1, 32, 1, false, (i / segments) * Math.PI * 2, arc);
       const mat = new THREE.MeshStandardMaterial({
           color: isWin ? 0xffaa00 : (isHazard ? 0xff0000 : color),
           emissive: isWin ? 0xffaa00 : (isHazard ? 0xff0000 : color),
