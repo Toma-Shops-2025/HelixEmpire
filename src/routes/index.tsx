@@ -275,7 +275,7 @@ function GamePage() {
          <span className="text-[90vh] font-black italic opacity-[0.08] shadow-x-glow animate-float-slow select-none">H</span>
       </div>
 
-      <div ref={containerRef} className="absolute inset-0 z-0" />
+      <div ref={containerRef} className="absolute inset-0 z-10" />
 
       {/* HUD */}
       <div className="absolute top-12 left-0 right-0 px-6 flex justify-between items-center z-[1000] pointer-events-none">

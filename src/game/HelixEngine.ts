@@ -77,6 +77,12 @@ export class HelixEngine {
 
     this.setupLevel(this.state.level);
     this.setupInputs();
+
+    // Ensure initial camera position is correct
+    if (this.camera && this.ball) {
+        this.camera.lookAt(0, this.ball.position.y, 0);
+    }
+
     this.animate();
   }
 
@@ -180,9 +186,12 @@ export class HelixEngine {
         if (this.ballVelocity < -0.4) this.ballVelocity = -0.4;
         this.ball.position.y += this.ballVelocity;
         this.camera.position.y = this.ball.position.y + 8;
-        this.camera.lookAt(0, this.ball.position.y, 0);
         this.checkCollisions();
     }
+
+    // Always keep the camera focused on the ball
+    this.camera.lookAt(0, this.ball.position.y, 0);
+
     this.renderer.render(this.scene, this.camera);
   }
 
