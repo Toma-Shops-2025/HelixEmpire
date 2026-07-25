@@ -18,8 +18,8 @@ export class HelixEngine {
   private raycaster: THREE.Raycaster = new THREE.Raycaster();
 
   private ballVelocity = 0;
-  private jumpForce = 0.22;
-  private gravity = -0.01;
+  private jumpForce = 0.28; // Increased for better bounce
+  private gravity = -0.015; // Increased for faster fall
   private isRotating = false;
   private previousMouseX = 0;
 
@@ -36,55 +36,45 @@ export class HelixEngine {
   }
 
   private init() {
+    console.log("HelixEngine: Initializing...");
     this.scene = new THREE.Scene();
 
-    // Do not set scene.background to allow CSS background/"H" to show through.
+    // Solid background if transparent fails
+    this.scene.background = new THREE.Color(0x050510);
 
     const width = this.container.clientWidth || window.innerWidth;
     const height = this.container.clientHeight || window.innerHeight;
 
-    this.camera = new THREE.PerspectiveCamera(60, width / height, 0.1, 1000);
-    this.camera.position.set(0, 15, 35); // Pulled back for better view
+    this.camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 2000);
+    this.camera.position.set(0, 15, 45); // Further back to ensure visibility
 
     this.renderer = new THREE.WebGLRenderer({
         antialias: true,
-        alpha: true,
-        powerPreference: "default"
+        alpha: false, // Set to false to ensure we see the 3D world clearly
+        powerPreference: "high-performance"
     });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    this.renderer.setPixelRatio(window.devicePixelRatio);
     this.renderer.setSize(width, height);
 
     while (this.container.firstChild) this.container.removeChild(this.container.firstChild);
     this.container.appendChild(this.renderer.domElement);
 
-    // Add Stars
-    const starGeo = new THREE.BufferGeometry();
-    const starCount = 2000;
-    const starPos = new Float32Array(starCount * 3);
-    for(let i=0; i<starCount*3; i++) {
-        starPos[i] = (Math.random() - 0.5) * 1000;
-    }
-    starGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
-    const starMat = new THREE.PointsMaterial({ color: 0xffffff, size: 0.7 });
-    const stars = new THREE.Points(starGeo, starMat);
-    this.scene.add(stars);
-
-    // Lighting
-    this.scene.add(new THREE.AmbientLight(0xffffff, 0.6));
-    const sun = new THREE.DirectionalLight(0xffffff, 1.2);
+    // High-Intensity Lighting
+    this.scene.add(new THREE.AmbientLight(0xffffff, 0.8));
+    const sun = new THREE.DirectionalLight(0xffffff, 1.5);
     sun.position.set(10, 20, 10);
     this.scene.add(sun);
 
-    // Ball
+    // Ball - Make it bigger and brighter
     this.ball = new THREE.Mesh(
-        new THREE.SphereGeometry(0.5, 32, 32),
+        new THREE.SphereGeometry(0.6, 32, 32),
         new THREE.MeshStandardMaterial({
             color: 0xff4500,
             emissive: 0xff0000,
-            emissiveIntensity: 0.5
+            emissiveIntensity: 1.0
         })
     );
-    this.ball.position.set(0, 10, 4); // Positioned slightly forward
+    this.ball.position.set(0, 10, 5);
     this.scene.add(this.ball);
 
     this.tower = new THREE.Group();
@@ -92,8 +82,8 @@ export class HelixEngine {
 
     // Core Column
     const column = new THREE.Mesh(
-        new THREE.CylinderGeometry(1.5, 1.2, 2000, 32),
-        new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.1 })
+        new THREE.CylinderGeometry(1.5, 1.2, 3000, 32),
+        new THREE.MeshStandardMaterial({ color: 0x111111 })
     );
     this.tower.add(column);
 
@@ -101,27 +91,24 @@ export class HelixEngine {
     this.setupInputs();
 
     window.addEventListener('resize', this.onResize);
-
-    // Force a resize calculation after a frame to ensure container is ready
-    setTimeout(this.onResize, 100);
-
     this.animate();
   }
 
   private onResize = () => {
     if (!this.container || !this.renderer || !this.camera) return;
-    const width = this.container.clientWidth;
-    const height = this.container.clientHeight;
+    const width = this.container.clientWidth || window.innerWidth;
+    const height = this.container.clientHeight || window.innerHeight;
     this.camera.aspect = width / height;
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(width, height);
   };
 
   public setPaused(val: boolean) {
+    console.log("HelixEngine: Setting paused to", val);
     this.isPaused = val;
     if (!val) {
         this.autoRotate = false;
-        this.ballVelocity = -0.05;
+        this.ballVelocity = -0.1; // Kickstart fall
     }
   }
 
@@ -134,10 +121,10 @@ export class HelixEngine {
     toRemove.forEach(c => this.tower?.remove(c));
 
     const levelColor = [0xbc13fe, 0xff007f, 0x0077ff, 0x00ffcc, 0xffd700][level % 5];
-    const spacing = 8;
+    const spacing = 10; // More space between platforms
 
-    for (let i = 0; i < 25; i++) {
-        this.createPlatform(5 - (i * spacing), levelColor, i === 24, i === 0);
+    for (let i = 0; i < 20; i++) {
+        this.createPlatform(5 - (i * spacing), levelColor, i === 19, i === 0);
     }
 
     this.ball.position.y = 10;
@@ -152,25 +139,23 @@ export class HelixEngine {
 
     const segments = 12;
     const gapStart = Math.floor(Math.random() * segments);
-    const gapSize = isFirst ? 0 : (isWin ? 0 : 2); // No gap for win/start platforms or specific size
+    const gapSize = isFirst ? 0 : 2;
 
     for (let i = 0; i < segments; i++) {
       let skip = false;
       for(let j=0; j<gapSize; j++) {
           if (i === (gapStart + j) % segments) skip = true;
       }
-      if (skip) continue;
+      if (skip && !isWin) continue;
 
-      const isHazard = !isWin && !isFirst && Math.random() > 0.92;
+      const isHazard = !isWin && !isFirst && Math.random() > 0.9;
       const arc = (1 / segments) * Math.PI * 2;
 
-      const geo = new THREE.CylinderGeometry(6, 6, 0.8, 32, 1, false, (i / segments) * Math.PI * 2, arc);
+      const geo = new THREE.CylinderGeometry(8, 8, 1, 32, 1, false, (i / segments) * Math.PI * 2, arc);
       const mat = new THREE.MeshStandardMaterial({
-          color: isWin ? 0x00ff00 : (isHazard ? 0xff0000 : color),
-          emissive: isWin ? 0x00ff00 : (isHazard ? 0xff0000 : color),
-          emissiveIntensity: 0.3,
-          transparent: true,
-          opacity: 0.9
+          color: isWin ? 0xffaa00 : (isHazard ? 0xff0000 : color),
+          emissive: isWin ? 0xffaa00 : (isHazard ? 0xff0000 : color),
+          emissiveIntensity: 0.5
       });
       const segment = new THREE.Mesh(geo, mat);
       segment.userData = { isHazard, isWinPlatform: isWin, isPlatform: true };
@@ -182,7 +167,7 @@ export class HelixEngine {
   private setupInputs() {
     const move = (x: number) => {
         if (!this.isRotating || !this.tower) return;
-        const delta = (x - this.previousMouseX) * 0.01;
+        const delta = (x - this.previousMouseX) * 0.02;
         this.tower.rotation.y += delta;
         this.previousMouseX = x;
     };
@@ -210,24 +195,18 @@ export class HelixEngine {
     this.animationId = requestAnimationFrame(this.animate);
 
     if (this.autoRotate) {
-        this.tower.rotation.y += 0.005;
+        this.tower.rotation.y += 0.01;
     }
 
     if (!this.isPaused) {
         this.ballVelocity += this.gravity;
-        // Cap terminal velocity
-        if (this.ballVelocity < -0.4) this.ballVelocity = -0.4;
-
+        if (this.ballVelocity < -0.5) this.ballVelocity = -0.5;
         this.ball.position.y += this.ballVelocity;
-
-        // Smooth camera follow
-        const targetCamY = this.ball.position.y + 12;
-        this.camera.position.y += (targetCamY - this.camera.position.y) * 0.1;
-
+        this.camera.position.y = this.ball.position.y + 15;
         this.checkCollisions();
     }
 
-    this.camera.lookAt(0, this.ball.position.y - 2, 0);
+    this.camera.lookAt(0, this.ball.position.y, 0);
     this.renderer.render(this.scene, this.camera);
   }
 
@@ -252,10 +231,7 @@ export class HelixEngine {
             return;
         }
 
-        // Jump
         this.ballVelocity = this.jumpForce;
-
-        // Score only once per platform level
         if (this.lastHitPlatform !== obj.parent) {
             this.state.onScoreUpdate(10);
             this.lastHitPlatform = obj.parent;
@@ -266,27 +242,9 @@ export class HelixEngine {
   public setSkin(s: string) {
     if (!this.ball) return;
     const mat = this.ball.material as THREE.MeshStandardMaterial;
-    mat.emissiveIntensity = 0.5;
-
-    switch(s) {
-        case 'gold':
-            mat.color.set(0xffd700);
-            mat.metalness = 0.8;
-            mat.roughness = 0.2;
-            break;
-        case 'fire':
-            mat.color.set(0xff4500);
-            mat.emissive.set(0xff0000);
-            mat.emissiveIntensity = 1.0;
-            break;
-        case 'glass':
-            mat.color.set(0x88ffff);
-            mat.opacity = 0.6;
-            mat.transparent = true;
-            break;
-        default:
-            mat.color.set(0xffffff);
-    }
+    if (s === 'gold') { mat.color.set(0xffd700); mat.metalness = 1.0; mat.roughness = 0.1; }
+    else if (s === 'fire') { mat.color.set(0xff4500); mat.emissive.set(0xff0000); }
+    else if (s === 'glass') { mat.color.set(0x00ffff); mat.opacity = 0.5; mat.transparent = true; }
     mat.needsUpdate = true;
   }
 
