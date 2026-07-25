@@ -20,7 +20,7 @@ function GamePage() {
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const { user, profile, signIn, signInWithGoogle, signUp, addJumpPoints, addViralCoins, loading, fetchProfile } = useAuth()
 
-  // Master State - Fixed to match Helix Empire logic
+  // Master State
   const [activeTab, setActiveTab] = useState<'play' | 'inventory' | 'store' | 'event'>('play')
   const [gameState, setGameState] = useState<'HOME' | 'PLAYING' | 'REVIVE' | 'WIN'>('HOME')
   const [score, setScore] = useState(0)
@@ -87,7 +87,7 @@ function GamePage() {
         engine.dispose();
         engineRef.current = null;
     }
-  }, [level, activeTab, user, currentSkin]);
+  }, [level, activeTab, user, currentSkin, addJumpPoints, addViralCoins]);
 
   const startGame = () => {
     if (audioRef.current) {
@@ -104,7 +104,7 @@ function GamePage() {
     setGameState('PLAYING');
     setTimeout(() => {
         if (engineRef.current) engineRef.current.setPaused(false);
-    }, 200);
+    }, 150);
   }
 
   const handleRevive = async () => {
@@ -119,6 +119,13 @@ function GamePage() {
     }
   }
 
+  const [isLogin, setIsLogin] = useState(true)
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [username, setUsername] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
+  const [agreed, setAgreed] = useState(false)
+
   const handleAuth = async (e: React.FormEvent) => {
       e.preventDefault();
       try {
@@ -126,13 +133,6 @@ function GamePage() {
           else await signUp(email, password, username);
       } catch (err: any) { toast.error(err.message); }
   }
-
-  const [isLogin, setIsLogin] = useState(true)
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [username, setUsername] = useState('')
-  const [showPassword, setShowPassword] = useState(false)
-  const [agreed, setAgreed] = useState(false)
 
   if (loading) return <div className="h-screen w-full bg-black flex items-center justify-center text-white"><Loader2 className="animate-spin text-primary h-12 w-12" /></div>
 
@@ -150,12 +150,12 @@ function GamePage() {
                       {!isLogin && (
                           <div className="bg-white/5 border border-white/10 rounded-2xl flex items-center px-4 py-4 backdrop-blur-md">
                               <UserIcon className="h-5 w-5 text-white/20 mr-3" />
-                              <input type="text" placeholder="Username" className="bg-transparent outline-none w-full font-bold text-white" value={username} onChange={e => setUsername(e.target.value)} required />
+                              <input type="text" placeholder="Username" className="bg-transparent outline-none w-full font-bold" value={username} onChange={e => setUsername(e.target.value)} required />
                           </div>
                       )}
                       <div className="bg-white/5 border border-white/10 rounded-2xl flex items-center px-4 py-4 backdrop-blur-md">
                           <Mail className="h-5 w-5 text-white/40 mr-3" />
-                          <input type="email" placeholder="Email" className="bg-transparent outline-none w-full font-bold text-white" value={email} onChange={e => setEmail(e.target.value)} required />
+                          <input type="email" placeholder="Email" className="bg-transparent outline-none w-full font-bold" value={email} onChange={e => setEmail(e.target.value)} required />
                       </div>
                       <div className="bg-white/5 border border-white/10 rounded-2xl flex items-center px-4 py-4 backdrop-blur-md">
                           <Lock className="h-5 w-5 text-white/20 mr-3" />
@@ -176,6 +176,7 @@ function GamePage() {
 
   return (
     <div className="relative w-full h-[100dvh] overflow-hidden bg-black text-white">
+      {/* 3D Engine Layer */}
       <div ref={containerRef} className="absolute inset-0 z-10" />
 
       {/* Cinematic Logo Layer */}
@@ -186,7 +187,7 @@ function GamePage() {
       )}
 
       {/* HUD Layer */}
-      <div className="absolute top-12 left-0 right-0 px-6 flex justify-between items-center z-[2000] pointer-events-none text-white">
+      <div className="absolute top-12 left-0 right-0 px-6 flex justify-between items-center z-[5000] pointer-events-none text-white">
           <div className="flex items-center gap-2 bg-black/60 backdrop-blur-xl px-4 py-2 rounded-full border border-white/10">
               <Coins className="h-4 w-4 text-yellow-400" />
               <span className="font-black text-sm">{profile?.coin_balance || 0}</span>
@@ -202,7 +203,7 @@ function GamePage() {
 
       {/* Main Play UI */}
       {activeTab === 'play' && !isPlaying && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center z-[3000] bg-black/40 backdrop-blur-[2px] px-6 text-center">
+        <div className="absolute inset-0 flex flex-col items-center justify-center z-[4000] bg-black/40 backdrop-blur-[2px] px-6 text-center">
             <h1 className="text-7xl font-black italic mb-12 leading-none tracking-tighter text-white drop-shadow-glow">HELIX<br/>EMPIRE</h1>
             <button onClick={startGame} className="w-64 h-24 bg-primary text-white rounded-full text-4xl font-black italic shadow-glow active:scale-95 transition-all">PLAY</button>
             <div className="mt-12 flex gap-8 text-[12px] font-black uppercase tracking-widest opacity-40">
@@ -214,14 +215,14 @@ function GamePage() {
 
       {/* Game State Overlays */}
       {gameState === 'WIN' && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center z-[4000] bg-black/60 backdrop-blur-[4px] px-6 text-center animate-in fade-in zoom-in duration-300">
+          <div className="absolute inset-0 flex flex-col items-center justify-center z-[6000] bg-black/60 backdrop-blur-[4px] px-6 text-center animate-in fade-in zoom-in duration-300">
               <Trophy className="h-24 w-24 text-yellow-400 mb-6 drop-shadow-glow" />
               <h2 className="text-6xl font-black mb-12 italic text-white drop-shadow-2xl uppercase leading-tight">Stage<br/>Clear</h2>
               <button onClick={() => { setGameState('HOME'); setLevel(l => l + 1); }} className="w-72 py-8 bg-white text-black rounded-[40px] font-black text-2xl active:scale-95 transition-all shadow-2xl uppercase tracking-tighter">Next Stage</button>
           </div>
       )}
       {gameState === 'REVIVE' && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center z-[4000] bg-black/60 backdrop-blur-[4px] px-6 text-center animate-in fade-in zoom-in duration-300">
+          <div className="absolute inset-0 flex flex-col items-center justify-center z-[6000] bg-black/60 backdrop-blur-[4px] px-6 text-center animate-in fade-in zoom-in duration-300">
               <h2 className="text-6xl font-black mb-8 italic text-red-500 drop-shadow-glow uppercase">Crash</h2>
               <button onClick={handleRevive} disabled={isAdLoading} className="w-full max-w-xs py-6 bg-green-500 text-white rounded-[30px] font-black text-xl mb-4 shadow-lg active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-3">
                   {isAdLoading ? <Loader2 className="animate-spin" /> : <Sparkles className="h-6 w-6" />}
@@ -244,7 +245,7 @@ function GamePage() {
 
       {/* Navigation */}
       <nav className={cn(
-        "fixed bottom-0 left-0 right-0 h-24 bg-black/95 backdrop-blur-3xl border-t border-white/10 flex items-center justify-around px-2 py-6 pb-10 pointer-events-auto transition-transform duration-500 z-[3000]",
+        "fixed bottom-0 left-0 right-0 h-24 bg-black/95 backdrop-blur-3xl border-t border-white/10 flex items-center justify-around px-2 py-6 pb-10 pointer-events-auto transition-transform duration-500 z-[7000]",
         isPlaying && activeTab === 'play' ? "translate-y-full" : "translate-y-0"
       )}>
         <NavButton icon={Box} label="Skins" active={activeTab === 'inventory'} onClick={() => setActiveTab('inventory')} />
