@@ -109,14 +109,8 @@ function GamePage() {
     setScore(0);
     setGameState('PLAYING');
 
-    // Crucial: ensure engine starts
     if (engineRef.current) {
         engineRef.current.setPaused(false);
-    } else {
-        // Fallback if engine wasn't ready
-        setTimeout(() => {
-            if (engineRef.current) engineRef.current.setPaused(false);
-        }, 100);
     }
   }
 
@@ -145,6 +139,18 @@ function GamePage() {
           else await signUp(email, password, username);
       } catch (err: any) { toast.error(err.message); }
   }
+
+  // Handle Tab Change to Reset Game State if needed
+  const handleTabChange = (tab: 'play' | 'inventory' | 'store' | 'event') => {
+      if (gameState === 'WIN') {
+          setLevel(l => l + 1);
+          setGameState('HOME');
+      } else if (gameState === 'REVIVE') {
+          setGameState('HOME');
+          setLevel(1);
+      }
+      setActiveTab(tab);
+  };
 
   if (loading) return <div className="h-screen w-full bg-black flex items-center justify-center text-white"><Loader2 className="animate-spin text-primary h-12 w-12" /></div>
 
@@ -225,15 +231,15 @@ function GamePage() {
         </div>
       )}
 
-      {/* Game State Overlays */}
-      {gameState === 'WIN' && (
+      {/* Game State Overlays - ONLY SHOW WHEN ON PLAY TAB */}
+      {activeTab === 'play' && gameState === 'WIN' && (
           <div className="absolute inset-0 flex flex-col items-center justify-center z-[6000] bg-black/60 backdrop-blur-[4px] px-6 text-center animate-in fade-in zoom-in duration-300">
               <Trophy className="h-24 w-24 text-yellow-400 mb-6 drop-shadow-glow" />
               <h2 className="text-6xl font-black mb-12 italic text-white drop-shadow-2xl uppercase leading-tight">Stage<br/>Clear</h2>
               <button onClick={() => { setGameState('HOME'); setLevel(l => l + 1); }} className="w-72 py-8 bg-white text-black rounded-[40px] font-black text-2xl active:scale-95 transition-all shadow-2xl uppercase tracking-tighter">Next Stage</button>
           </div>
       )}
-      {gameState === 'REVIVE' && (
+      {activeTab === 'play' && gameState === 'REVIVE' && (
           <div className="absolute inset-0 flex flex-col items-center justify-center z-[6000] bg-black/60 backdrop-blur-[4px] px-6 text-center animate-in fade-in zoom-in duration-300">
               <h2 className="text-6xl font-black mb-8 italic text-red-500 drop-shadow-glow uppercase font-black">Crash</h2>
               <button onClick={handleRevive} disabled={isAdLoading} className="w-full max-w-xs py-6 bg-green-500 text-white rounded-[30px] font-black text-xl mb-4 shadow-lg active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-3">
@@ -244,27 +250,29 @@ function GamePage() {
           </div>
       )}
 
-      <GameUI
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
-        currentSkin={currentSkin}
-        onSkinSelect={(s) => {
-            setCurrentSkin(s);
-            if (engineRef.current) engineRef.current.setSkin(s);
-        }}
-        isHidden={isPlaying}
-      />
+      <div className={cn("transition-opacity duration-300", activeTab === 'play' && "hidden")}>
+        <GameUI
+            activeTab={activeTab}
+            setActiveTab={handleTabChange}
+            currentSkin={currentSkin}
+            onSkinSelect={(s) => {
+                setCurrentSkin(s);
+                if (engineRef.current) engineRef.current.setSkin(s);
+            }}
+            isHidden={isPlaying}
+        />
+      </div>
 
       {/* Navigation - TOPMOST */}
       <nav className={cn(
         "fixed bottom-0 left-0 right-0 h-24 bg-black/95 backdrop-blur-3xl border-t border-white/10 flex items-center justify-around px-2 py-6 pb-10 pointer-events-auto transition-transform duration-500 z-[8000]",
         isPlaying && activeTab === 'play' ? "translate-y-full opacity-0 invisible" : "translate-y-0 opacity-100 visible"
       )}>
-        <NavButton icon={Box} label="Skins" active={activeTab === 'inventory'} onClick={() => setActiveTab('inventory')} />
-        <NavButton icon={ShoppingBag} label="Shop" active={activeTab === 'store'} onClick={() => setActiveTab('store')} />
-        <NavButton icon={Award} label="Win" active={activeTab === 'event'} onClick={() => setActiveTab('event')} />
+        <NavButton icon={Box} label="Skins" active={activeTab === 'inventory'} onClick={() => handleTabChange('inventory')} />
+        <NavButton icon={ShoppingBag} label="Shop" active={activeTab === 'store'} onClick={() => handleTabChange('store')} />
+        <NavButton icon={Award} label="Win" active={activeTab === 'event'} onClick={() => handleTabChange('event')} />
         {activeTab !== 'play' && (
-            <button onClick={() => setActiveTab('play')} className="bg-primary p-4 rounded-full shadow-glow active:scale-90 transition-transform">
+            <button onClick={() => handleTabChange('play')} className="bg-primary p-4 rounded-full shadow-glow active:scale-90 transition-transform">
                 <span className="font-black text-xs uppercase italic px-4 text-white">Exit</span>
             </button>
         )}
