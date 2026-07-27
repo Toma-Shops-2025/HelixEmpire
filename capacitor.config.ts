@@ -6,6 +6,13 @@ const config: CapacitorConfig = {
   webDir: 'dist',
   server: {
     androidScheme: 'https'
+  },
+  plugins: {
+    AdMob: {
+      // Helix Empire AdMob App ID
+      // Replace with real ID when available in Netlify
+      appId: 'ca-app-pub-3940256099942544~3347511713',
+    }
   }
 };
 
