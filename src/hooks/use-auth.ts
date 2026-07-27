@@ -9,7 +9,7 @@ export function useAuth() {
 
   const fetchProfile = useCallback(async (userId: string) => {
     try {
-        const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).single();
+        const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle();
         if (data) {
             setProfile(data);
         } else {
@@ -25,6 +25,7 @@ export function useAuth() {
             if (newP) setProfile(newP);
         }
     } catch (e) {
+        console.error("Helix: Fetch profile error", e);
     } finally {
         setLoading(false);
     }
@@ -53,6 +54,52 @@ export function useAuth() {
 
     return () => subscription.unsubscribe();
   }, [fetchProfile]);
+
+  const addJumpPoints = useCallback(async (amount: number) => {
+    if (!user) return;
+    try {
+        // Try atomic update
+        const { error } = await supabase.rpc('increment_jump_balance', {
+            user_id: user.id,
+            amount: amount
+        });
+
+        if (error) {
+            console.warn("RPC failed, falling back to manual update");
+            const { data: curr } = await supabase.from('profiles').select('jump_balance').eq('id', user.id).single();
+            const total = (curr?.jump_balance || 0) + amount;
+            await supabase.from('profiles').update({ jump_balance: total }).eq('id', user.id);
+        }
+
+        // Force Sync
+        await fetchProfile(user.id);
+    } catch (e) {
+        console.error("Jump point sync failed", e);
+    }
+  }, [user, fetchProfile]);
+
+  const addViralCoins = useCallback(async (amount: number) => {
+    if (!user) return;
+    try {
+        // Try atomic update
+        const { error } = await supabase.rpc('increment_coin_balance', {
+            user_id: user.id,
+            amount: amount
+        });
+
+        if (error) {
+            console.warn("RPC failed, falling back to manual update");
+            const { data: curr } = await supabase.from('profiles').select('coin_balance').eq('id', user.id).single();
+            const total = (curr?.coin_balance || 0) + amount;
+            await supabase.from('profiles').update({ coin_balance: total }).eq('id', user.id);
+        }
+
+        // Force Sync
+        await fetchProfile(user.id);
+    } catch (e) {
+        console.error("Coin sync failed", e);
+    }
+  }, [user, fetchProfile]);
 
   const signIn = async (email: string, pass: string) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password: pass });
@@ -86,28 +133,6 @@ export function useAuth() {
         });
     }
   };
-
-  const addJumpPoints = useCallback(async (amount: number) => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session?.user) return;
-
-    const { data: curr } = await supabase.from('profiles').select('jump_balance').eq('id', session.user.id).single();
-    const total = (curr?.jump_balance || 0) + amount;
-
-    await supabase.from('profiles').update({ jump_balance: total }).eq('id', session.user.id);
-    setProfile((prev: any) => prev ? { ...prev, jump_balance: total } : null);
-  }, []);
-
-  const addViralCoins = useCallback(async (amount: number) => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session?.user) return;
-
-    const { data: curr } = await supabase.from('profiles').select('coin_balance').eq('id', session.user.id).single();
-    const total = (curr?.coin_balance || 0) + amount;
-
-    await supabase.from('profiles').update({ coin_balance: total }).eq('id', session.user.id);
-    setProfile((prev: any) => prev ? { ...prev, coin_balance: total } : null);
-  }, []);
 
   const signOut = async () => {
     await supabase.auth.signOut();

@@ -4,7 +4,8 @@ import { cn } from '@/lib/utils'
 import { HelixEngine } from '@/game/HelixEngine'
 import { GameUI } from '@/components/GameUI'
 import { useAuth } from '@/hooks/use-auth'
-import { AdMob, BannerAdPosition, BannerAdSize } from '@capacitor-community/admob'
+import { CONFIG } from '@/config'
+import { AdMob, BannerAdPosition, BannerAdSize, RewardAdPluginEvents } from '@capacitor-community/admob'
 import { Browser } from '@capacitor/browser'
 import { Capacitor } from '@capacitor/core'
 import { Coins, Zap, Mail, Lock, User as UserIcon, Eye, EyeOff, Loader2, Sparkles, Trophy, Box, ShoppingBag, Award } from 'lucide-react'
@@ -37,10 +38,10 @@ function GamePage() {
         try {
             await AdMob.initialize();
             await AdMob.showBanner({
-                adId: 'ca-app-pub-3940256099942544/6300978111',
-                position: BannerAdPosition.TOP_CENTER,
-                size: BannerAdSize.BANNER,
-                isTesting: true,
+                adId: CONFIG.ADMOB_BANNER_ID,
+                position: BannerAdPosition.BOTTOM_CENTER,
+                size: BannerAdSize.ADAPTIVE_BANNER,
+                isTesting: CONFIG.IS_TESTING,
                 margin: 0
             });
         } catch (e) {}
