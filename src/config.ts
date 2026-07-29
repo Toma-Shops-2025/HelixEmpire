@@ -1,10 +1,7 @@
 export const CONFIG = {
     APP_NAME: "Helix Empire",
+    DOMAIN: "helixempire.fun",
+    PRIVACY_URL: "https://helixempire.fun/privacy",
+    TERMS_URL: "https://helixempire.fun/terms",
     IS_TESTING: false,
-
-    // ADMOB IDS - Pulling from Netlify Env Vars
-    ADMOB_APP_ID: import.meta.env.VITE_ADMOB_APP_ID || "ca-app-pub-3940256099942544~3347511713",
-    ADMOB_BANNER_ID: "ca-app-pub-3940256099942544/6300978111",
-    ADMOB_INTERSTITIAL_ID: "ca-app-pub-3940256099942544/1033173712",
-    ADMOB_REWARDED_ID: import.meta.env.VITE_ADMOB_REWARDED_ID || "ca-app-pub-3940256099942544/5224354917",
 }

@@ -1,11 +1,14 @@
-# Helix Empire - Build signed APK for Testing
+# Helix Empire - Build signed APK for local testing
+# Usage: cd Desktop\helix-jump ; .\build-apk.ps1
+
 $ProjectPath  = "$env:USERPROFILE\Desktop\helix-jump"
 $KeystorePath = "C:\Keys\helix-jump.jks"
-$KeyAlias     = "alias"
-$ApkPath      = "$ProjectPath\android\app\build\outputs\apk\release\app-release.apk"
+$KeyAlias     = "helixjump1"
 $Password     = "Custom.247"
+$ApkPath      = "$ProjectPath\android\app\build\outputs\apk\release\app-release.apk"
 
 $ErrorActionPreference = "Stop"
+
 function Step($msg) { Write-Host "`n==> $msg" -ForegroundColor Cyan }
 
 Step "Cleaning..."
@@ -21,8 +24,7 @@ npx cap sync android
 
 Step "Building Android APK..."
 Set-Location "$ProjectPath\android"
-& .\gradlew.bat clean
-& .\gradlew.bat assembleRelease "-Pandroid.injected.signing.store.file=$KeystorePath" "-Pandroid.injected.signing.store.password=$Password" "-Pandroid.injected.signing.key.alias=$KeyAlias" "-Pandroid.injected.signing.key.password=$Password"
+& .\gradlew.bat clean assembleRelease "-Pandroid.injected.signing.store.file=$KeystorePath" "-Pandroid.injected.signing.store.password=$Password" "-Pandroid.injected.signing.key.alias=$KeyAlias" "-Pandroid.injected.signing.key.password=$Password"
 
 Set-Location $ProjectPath
 if (Test-Path $ApkPath) {
