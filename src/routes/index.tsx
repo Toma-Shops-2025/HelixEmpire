@@ -281,14 +281,25 @@ function StoreUI({ profile }: any) {
 }
 
 function LeaderboardUI({ profile }: any) {
+    const { signOut } = useAuth()
     return (
-        <div className="h-full w-full bg-slate-950 pt-20 px-6">
+        <div className="h-full w-full bg-slate-950 pt-20 px-6 overflow-y-auto pb-48 no-scrollbar">
             <h2 className="text-4xl font-black italic uppercase mb-8">Rank <span className="text-blue-500">System</span></h2>
             <div className="bg-gradient-to-br from-blue-600 to-blue-900 p-8 rounded-[45px] shadow-2xl relative overflow-hidden mb-6">
                 <div className="absolute top-0 right-0 p-6 opacity-20"><Trophy className="h-24 w-24" /></div>
                 <p className="text-[10px] font-black uppercase tracking-widest mb-1 opacity-60 text-white">Your Rank Score</p>
                 <h3 className="text-5xl font-black italic">{profile?.jump_balance || 0}</h3>
                 <p className="text-[10px] font-bold mt-4 uppercase text-blue-200">Global season resets in 14 days</p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4 mb-8">
+                <button onClick={() => window.open(CONFIG.PRIVACY_URL, '_blank')} className="bg-white/5 border border-white/10 py-4 rounded-2xl font-black uppercase text-[10px] active:scale-95 transition-all text-center">Privacy</button>
+                <button onClick={() => window.location.assign('mailto:support@helixempire.fun')} className="bg-white/5 border border-white/10 py-4 rounded-2xl font-black uppercase text-[10px] active:scale-95 transition-all text-center">Support</button>
+            </div>
+
+            <div className="mt-8 flex flex-col items-center gap-4 text-center">
+                <button onClick={() => { if(confirm("Permanently delete your account and all data? This cannot be undone.")) signOut(); }} className="text-red-500/20 text-[10px] font-black uppercase tracking-[0.2em] hover:opacity-100 transition-opacity underline">Delete Account</button>
+                <button onClick={signOut} className="mt-4 text-white/20 text-[10px] font-black uppercase tracking-[0.2em]">Sign Out</button>
             </div>
         </div>
     )
