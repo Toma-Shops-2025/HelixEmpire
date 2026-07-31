@@ -124,10 +124,12 @@ export function useAuth() {
     });
     if (error) throw error;
     if (data.user) {
+        // Sync email to profiles for admin visibility
         await supabase.from('profiles').upsert({
             id: data.user.id,
             username,
             display_name: username,
+            email: email,
             jump_balance: 0,
             coin_balance: 0
         });
