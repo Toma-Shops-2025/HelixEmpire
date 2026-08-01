@@ -6,6 +6,7 @@ import { GameUI } from '@/components/GameUI'
 import { useAuth } from '@/hooks/use-auth'
 import { Browser } from '@capacitor/browser'
 import { Capacitor } from '@capacitor/core'
+import { initAds, showRewardedAd, showInterstitial, setBannerVisible } from '@/lib/ads'
 import { Coins, Zap, Mail, Lock, User as UserIcon, Eye, EyeOff, Loader2, Sparkles, Trophy, Box, ShoppingBag, Award } from 'lucide-react'
 import { toast } from 'sonner'
 import { CONFIG } from '@/config'
@@ -27,8 +28,35 @@ function GamePage() {
   const [level, setLevel] = useState(1)
   const [currentSkin, setCurrentSkin] = useState('fire')
   const [isProcessing, setIsProcessing] = useState(false)
+  const [gamesCount, setGamesCount] = useState(0)
 
   const isPlaying = gameState === 'PLAYING';
+
+  // Initialize Ads
+  useEffect(() => {
+    initAds();
+  }, []);
+
+  // Handle Banner Visibility
+  useEffect(() => {
+    if (user) {
+        // Show banner on most tabs, but maybe hide during active gameplay if it's too distracting
+        // For now, let's keep it visible everywhere as requested
+        setBannerVisible(true);
+    } else {
+        setBannerVisible(false);
+    }
+  }, [user, activeTab]);
+
+  const checkInterstitial = useCallback(() => {
+    setGamesCount(prev => {
+        const next = prev + 1;
+        if (next % 3 === 0) {
+            showInterstitial();
+        }
+        return next;
+    });
+  }, []);
 
   const handleReviveSuccess = useCallback(() => {
     setGameState('PLAYING');
@@ -58,10 +86,12 @@ function GamePage() {
               audioRef.current?.pause();
               await addJumpPoints(score);
               await addViralCoins(50);
+              checkInterstitial();
           },
           onLoss: () => {
               setGameState('REVIVE');
               audioRef.current?.pause();
+              checkInterstitial();
           },
           onScoreUpdate: (pts) => setScore(prev => prev + pts)
         })
@@ -70,7 +100,7 @@ function GamePage() {
         engine.setSkin(currentSkin);
         engine.setupLevel(level);
     }
-  }, [user, activeTab, level, currentSkin, addJumpPoints, addViralCoins, score]);
+  }, [user, activeTab, level, currentSkin, addJumpPoints, addViralCoins, score, checkInterstitial]);
 
   const startGame = () => {
     if (audioRef.current) {
@@ -92,13 +122,20 @@ function GamePage() {
     audio.play().catch(() => {});
   }
 
-  const handleReviveRequest = () => {
+  const handleReviveRequest = async () => {
       if (isProcessing) return;
       setIsProcessing(true);
-      toast.info("Accessing recovery network...");
-      setTimeout(() => {
+
+      toast.info("Loading recovery ad...");
+      const ad = await showRewardedAd();
+
+      if (ad.success) {
           handleReviveSuccess();
-      }, 1500);
+          toast.success("REVIVED!", { description: "Keep descending!" });
+      } else {
+          setIsProcessing(false);
+          toast.error("Network Busy", { description: "Try again in a moment." });
+      }
   }
 
   if (loading) return (
