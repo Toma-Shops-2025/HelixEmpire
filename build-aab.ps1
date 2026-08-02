@@ -16,7 +16,13 @@ Set-Location $ProjectPath
 npm install
 npm run build
 
+Step "Regenerating Android launcher icon + splash from resources/"
+npm run assets:generate
+
 Step "Syncing Capacitor..."
+if (Test-Path "android/app/src/main/assets/public") {
+    Remove-Item "android/app/src/main/assets/public" -Recurse -Force
+}
 npx cap sync android
 
 Step "Bumping versionCode..."
