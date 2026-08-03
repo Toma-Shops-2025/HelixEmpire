@@ -2,8 +2,8 @@
 # Usage: cd Desktop\helix-jump ; .\build-aab.ps1
 
 $ProjectPath  = "$env:USERPROFILE\Desktop\helix-jump"
-$KeystorePath = "C:\Keys\helix-empire.jks"
-$KeyAlias     = "helix1"
+$KeystorePath = "C:\Keys\helix-jump.jks"
+$KeyAlias     = "alias"
 $AabPath      = "$ProjectPath\android\app\build\outputs\bundle\release\app-release.aab"
 $Password     = "Custom.247"
 
