@@ -1,25 +1,38 @@
 # Helix Empire - Build signed AAB for Google Play
-$ProjectPath  = "$env:USERPROFILE\Desktop\helix-jump"
-$KeystorePath = "C:\Keys\helix-jump.jks"
-$KeyAlias     = "helixjump1"
-$Password     = "Custom.247"
-$AabPath      = "$ProjectPath\android\app\build\outputs\bundle\release\app-release.aab"
+# Usage: cd Desktop\helix-jump ; .\build-aab.ps1
 
-$ErrorActionPreference = "Stop"
+$ProjectPath  = "$env:USERPROFILE\Desktop\helix-jump"
+$KeystorePath = "C:\Keys\helix-empire.jks"
+$KeyAlias     = "helix1"
+$AabPath      = "$ProjectPath\android\app\build\outputs\bundle\release\app-release.aab"
+$Password     = "Custom.247"
+
+# Relax error handling for background cleanup tasks
+$ErrorActionPreference = "Continue"
+
 function Step($msg) { Write-Host "`n==> $msg" -ForegroundColor Cyan }
 
-Step "Cleaning..."
+Step "Cleaning old build files..."
+if (Test-Path "dist") { Remove-Item "dist" -Recurse -Force }
 if (Test-Path $AabPath) { Remove-Item $AabPath -Force }
 
-Step "Building Web App..."
+Step "Switching to project: $ProjectPath"
 Set-Location $ProjectPath
+
+Step "npm install"
 npm install
+
+Step "Building web app"
 npm run build
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "Web build failed!" -ForegroundColor Red
+    exit 1
+}
 
 Step "Regenerating Android launcher icon + splash from resources/"
 npm run assets:generate
 
-Step "Syncing Capacitor..."
+Step "Capacitor sync (Forcing fresh public assets)"
 if (Test-Path "android/app/src/main/assets/public") {
     Remove-Item "android/app/src/main/assets/public" -Recurse -Force
 }
@@ -36,13 +49,36 @@ if ($content -match 'versionCode\s+(\d+)') {
     Write-Host "    versionCode: $old -> $new" -ForegroundColor Green
 }
 
-Step "Building Android AAB..."
-Set-Location "$ProjectPath\android"
-& .\gradlew.bat clean
-& .\gradlew.bat bundleRelease "-Pandroid.injected.signing.store.file=$KeystorePath" "-Pandroid.injected.signing.store.password=$Password" "-Pandroid.injected.signing.key.alias=$KeyAlias" "-Pandroid.injected.signing.key.password=$Password"
+Step "Building signed release AAB"
+if (Test-Path -Path "$ProjectPath\android\gradlew.bat") {
+    Set-Location "$ProjectPath\android"
+
+    # Stop old daemons to prevent file locking, ignore the "failure" message it generates
+    & .\gradlew.bat --stop 2>$null
+    & .\gradlew.bat clean 2>$null
+
+    $gradleArgs = @(
+        "bundleRelease",
+        "-Pandroid.injected.signing.store.file=$KeystorePath",
+        "-Pandroid.injected.signing.store.password=$Password",
+        "-Pandroid.injected.signing.key.alias=$KeyAlias",
+        "-Pandroid.injected.signing.key.password=$Password"
+    )
+    & .\gradlew.bat @gradleArgs
+    $gradleExit = $LASTEXITCODE
+} else {
+    Write-Error "gradlew.bat not found."
+    exit 1
+}
 
 Set-Location $ProjectPath
-if (Test-Path $AabPath) {
-    Write-Host "`n  SUCCESS! AAB Ready: $AabPath" -ForegroundColor Green
+
+if ($gradleExit -eq 0 -and (Test-Path $AabPath)) {
+    Write-Host "`n  SUCCESS" -ForegroundColor Green
+    Write-Host "  Signed AAB: $AabPath" -ForegroundColor Green
+    Write-Host "  Upload to Play Console -> Production -> Create new release.`n"
     Start-Process explorer.exe "/select,`"$AabPath`""
+} else {
+    Write-Host "`n  Build FAILED. Please scroll up to check for RED errors in the Gradle log." -ForegroundColor Red
+    exit 1
 }
