@@ -1,7 +1,7 @@
 # Helix Empire - Build signed AAB for Google Play
-# Usage: cd Desktop\helix-jump ; .\build-aab.ps1
+# Usage: cd Desktop\HelixEmpire ; .\build-aab.ps1
 
-$ProjectPath  = "$env:USERPROFILE\Desktop\helix-jump"
+$ProjectPath  = "$env:USERPROFILE\Desktop\HelixEmpire"
 $KeystorePath = "C:\Keys\helix-jump.jks"
 $KeyAlias     = "alias"
 $AabPath      = "$ProjectPath\android\app\build\outputs\bundle\release\app-release.aab"

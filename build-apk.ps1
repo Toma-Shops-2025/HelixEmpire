@@ -1,9 +1,9 @@
 # Helix Empire - Build signed APK for local testing
-# Usage: cd Desktop\helix-jump ; .\build-apk.ps1
+# Usage: cd Desktop\HelixEmpire ; .\build-apk.ps1
 
-$ProjectPath  = "$env:USERPROFILE\Desktop\helix-jump"
+$ProjectPath  = "$env:USERPROFILE\Desktop\HelixEmpire"
 $KeystorePath = "C:\Keys\helix-jump.jks"
-$KeyAlias     = "helixjump1"
+$KeyAlias     = "alias"
 $Password     = "Custom.247"
 $ApkPath      = "$ProjectPath\android\app\build\outputs\apk\release\app-release.apk"
 
