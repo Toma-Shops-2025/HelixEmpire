@@ -3,7 +3,7 @@
 
 $ProjectPath  = "$env:USERPROFILE\Desktop\HelixEmpire"
 $KeystorePath = "C:\Keys\helix-jump.jks"
-$KeyAlias     = "alias"
+$KeyAlias     = "helixjump1"
 $AabPath      = "$ProjectPath\android\app\build\outputs\bundle\release\app-release.aab"
 $Password     = "Custom.247"
 
