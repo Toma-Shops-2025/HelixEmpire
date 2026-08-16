@@ -32,14 +32,27 @@ export function useAuth() {
   }, []);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
+    let cancelled = false;
+
+    const finishLoading = () => {
+      if (!cancelled) setLoading(false);
+    };
+
+    supabase.auth.getSession()
+      .then(({ data: { session } }) => {
+        if (session?.user) {
           setUser(session.user);
           fetchProfile(session.user.id);
-      } else {
-          setLoading(false);
-      }
-    });
+        } else {
+          finishLoading();
+        }
+      })
+      .catch((e) => {
+        console.error("Helix: auth session error", e);
+        finishLoading();
+      });
+
+    const timeout = window.setTimeout(finishLoading, 8000);
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
@@ -48,11 +61,15 @@ export function useAuth() {
       } else {
           setUser(null);
           setProfile(null);
-          setLoading(false);
+          finishLoading();
       }
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeout);
+      subscription.unsubscribe();
+    };
   }, [fetchProfile]);
 
   const addJumpPoints = useCallback(async (amount: number) => {

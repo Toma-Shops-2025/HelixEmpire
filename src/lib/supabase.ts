@@ -5,8 +5,10 @@ const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_API || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
 if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-  console.error("HELIX ERROR: Missing Supabase Environment Variables!");
+  console.error("HELIX ERROR: Missing Supabase environment variables! Rebuild with .env configured.");
 }
+
+export const supabaseConfigured = Boolean(SUPABASE_URL && SUPABASE_ANON_KEY);
 
 export const supabase = createClient(SUPABASE_URL || "", SUPABASE_ANON_KEY || "", {
   auth: {
