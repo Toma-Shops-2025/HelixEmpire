@@ -26,7 +26,7 @@ function PrivacyPage() {
         <ul className="list-disc pl-6 space-y-1">
           <li>Synchronize your ViralCoins and progress across the TomaAI Empire Network.</li>
           <li>Provide core gameplay features and reward milestones.</li>
-          <li>Display relevant advertisements via Google AdMob.</li>
+          <li>Display relevant advertisements via Unity Ads.</li>
           <li>Analyze app performance and stability.</li>
         </ul>
       </LegalSection>
@@ -35,7 +35,7 @@ function PrivacyPage() {
         <p>We share data with the following partners:</p>
         <ul className="list-disc pl-6 space-y-1">
           <li>Supabase: For secure database storage and authentication.</li>
-          <li>Google AdMob: For providing advertising services and managing rewarded videos.</li>
+          <li>Unity Ads: For providing advertising services and managing rewarded videos.</li>
         </ul>
       </LegalSection>
 
