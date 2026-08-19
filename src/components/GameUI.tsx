@@ -1,55 +1,48 @@
-import { Zap, Trophy, RefreshCw, ChevronRight, Loader2, Sparkles, Award } from 'lucide-react';
+import { Zap, Trophy, RefreshCw, ChevronRight, Loader2, Award } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface GameUIProps {
     state: 'HOME' | 'PLAYING' | 'REVIVE' | 'WIN';
     score: number;
     level: number;
+    jumpPoints?: number;
+    viralCoins?: number;
     onStart: () => void;
     onRevive: () => void;
     onNext: () => void;
+    onQuit: () => void;
     isProcessing: boolean;
 }
 
-function AppBackground() {
-  return (
-    <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none bg-black/20">
-        <div className="absolute inset-0 bg-gradient-to-b from-black via-transparent to-black" />
-    </div>
-  )
-}
-
-export function GameUI({ state, score, level, onStart, onRevive, onNext, isProcessing }: GameUIProps) {
+export function GameUI({ state, score, level, jumpPoints = 0, viralCoins = 0, onStart, onRevive, onNext, onQuit, isProcessing }: GameUIProps) {
   return (
     <div className="absolute inset-0 flex flex-col items-center justify-between p-6 pointer-events-none z-[5000]">
-      <AppBackground />
-
       {/* Top Bar - Wallet & Progress */}
-      <div className="w-full flex justify-between items-start pt-8 animate-in fade-in slide-in-from-top duration-700 relative z-10">
+      <div className={cn("w-full flex justify-between items-start pt-8 animate-in fade-in slide-in-from-top duration-700 relative z-10", state === 'PLAYING' && "pointer-events-none opacity-80")}>
         <div className="bg-black/80 backdrop-blur-xl border border-white/10 px-4 py-2 rounded-2xl flex items-center gap-3 shadow-2xl">
           <div className="w-6 h-6 rounded-full bg-yellow-500/20 flex items-center justify-center border border-yellow-500/40">
             <div className="w-2.5 h-2.5 rounded-full border-2 border-yellow-500 shadow-[0_0_8px_rgba(234,179,8,0.5)]" />
           </div>
           <div className="flex flex-col">
             <span className="text-[7px] font-black uppercase tracking-widest text-white/40 leading-none">Wallet</span>
-            <span className="text-sm font-black italic text-white leading-none tracking-tighter">0 VC</span>
+            <span className="text-sm font-black italic text-white leading-none tracking-tighter">{viralCoins.toLocaleString()} VC</span>
           </div>
         </div>
 
         <div className="bg-black/80 backdrop-blur-xl border border-white/10 px-4 py-2 rounded-2xl flex items-center gap-3 shadow-2xl">
           <div className="flex flex-col text-right">
             <span className="text-[7px] font-black uppercase tracking-widest text-white/40 leading-none">Progress</span>
-            <span className="text-sm font-black italic text-green-400 leading-none tracking-tighter">0 JP</span>
+            <span className="text-sm font-black italic text-green-400 leading-none tracking-tighter">{jumpPoints.toLocaleString()} JP</span>
           </div>
           <Award className="h-4 w-4 text-green-400" />
         </div>
       </div>
 
-      {/* Main Content Area */}
-      <div className="flex-1 w-full flex flex-col items-center justify-center pointer-events-auto relative z-10">
+      {/* Main Content Area — pointer-events-none so touches reach the 3D canvas while playing */}
+      <div className="flex-1 w-full flex flex-col items-center justify-center relative z-10 pointer-events-none">
 
         {state === 'HOME' && (
-          <div className="flex flex-col items-center text-center animate-in zoom-in duration-500 mt-[-40px]">
+          <div className="flex flex-col items-center text-center animate-in zoom-in duration-500 mt-[-40px] pointer-events-auto">
             <h1 className="text-7xl font-black italic mb-4 tracking-tighter uppercase leading-[0.75] text-white">
               HELIX<br/>
               <span className="text-orange-600">EMPIRE</span>
@@ -63,26 +56,24 @@ export function GameUI({ state, score, level, onStart, onRevive, onNext, isProce
                 PLAY
               </button>
             </div>
-
-            <p className="mt-12 text-[10px] font-black uppercase tracking-[0.3em] text-white/20 italic">Sign in to sync progress</p>
           </div>
         )}
 
         {state === 'PLAYING' && (
-          <div className="flex flex-col items-center animate-in fade-in duration-500 mt-[-100px]">
+          <div className="flex flex-col items-center animate-in fade-in duration-500 mt-[-100px] pointer-events-none">
             <p className="text-[10px] font-black uppercase tracking-[0.4em] text-white/30 mb-2 italic">Stage {level}</p>
             <h2 className="text-9xl font-black italic text-white tracking-tighter leading-none drop-shadow-2xl">{score}</h2>
           </div>
         )}
 
         {state === 'REVIVE' && (
-            <div className="w-full max-w-[320px] bg-black/95 backdrop-blur-3xl border-2 border-white/5 p-10 rounded-[60px] text-center animate-in zoom-in duration-300 shadow-2xl relative overflow-hidden">
+            <div className="w-full max-w-[320px] bg-black/95 backdrop-blur-3xl border-2 border-white/5 p-10 rounded-[60px] text-center animate-in zoom-in duration-300 shadow-2xl relative overflow-hidden pointer-events-auto">
                 <div className="absolute inset-0 bg-red-600/5 pointer-events-none" />
                 <div className="w-20 h-20 bg-red-600 rounded-full flex items-center justify-center mx-auto mb-8 shadow-[0_0_40px_rgba(220,38,38,0.5)] border-4 border-white/10">
                     <RefreshCw className="h-10 w-10 text-white" />
                 </div>
                 <h2 className="text-4xl font-black italic uppercase mb-2">FAILED!</h2>
-                <p className="text-[10px] text-white/40 font-bold uppercase tracking-widest mb-10 italic">Don't lose your status!</p>
+                <p className="text-[10px] text-white/40 font-bold uppercase tracking-widest mb-10 italic">Watch ad to revive</p>
 
                 <button
                     onClick={onRevive}
@@ -91,12 +82,12 @@ export function GameUI({ state, score, level, onStart, onRevive, onNext, isProce
                 >
                     {isProcessing ? <Loader2 className="h-6 w-6 animate-spin" /> : "REVIVE"}
                 </button>
-                <button onClick={() => window.location.reload()} className="mt-8 text-[8px] font-black uppercase opacity-20 hover:opacity-100 transition-opacity underline tracking-[0.2em] italic">Quit Run</button>
+                <button onClick={onQuit} className="mt-8 text-[8px] font-black uppercase opacity-20 hover:opacity-100 transition-opacity underline tracking-[0.2em] italic">Quit Run</button>
             </div>
         )}
 
         {state === 'WIN' && (
-            <div className="w-full max-w-[320px] bg-black/95 backdrop-blur-3xl border-2 border-white/5 p-10 rounded-[60px] text-center animate-in zoom-in duration-300 shadow-2xl relative overflow-hidden">
+            <div className="w-full max-w-[320px] bg-black/95 backdrop-blur-3xl border-2 border-white/5 p-10 rounded-[60px] text-center animate-in zoom-in duration-300 shadow-2xl relative overflow-hidden pointer-events-auto">
                 <div className="absolute inset-0 bg-yellow-500/5 pointer-events-none" />
                 <div className="mb-8 flex justify-center drop-shadow-[0_0_30px_rgba(234,179,8,0.3)]">
                     <Trophy className="h-24 w-24 text-yellow-500" />
@@ -115,9 +106,8 @@ export function GameUI({ state, score, level, onStart, onRevive, onNext, isProce
         )}
       </div>
 
-      {/* Footer hint */}
-      <div className="pb-24 relative z-10">
-          {state === 'PLAYING' && <p className="text-[10px] font-black uppercase tracking-[0.4em] text-white/10 animate-pulse italic">Tap & Hold to Spin</p>}
+      <div className="pb-28 relative z-10 pointer-events-none">
+          {state === 'PLAYING' && <p className="text-[10px] font-black uppercase tracking-[0.4em] text-white/30 animate-pulse italic text-center">Drag to spin the tower</p>}
       </div>
     </div>
   );

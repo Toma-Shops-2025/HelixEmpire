@@ -22,6 +22,7 @@ export class HelixEngine {
   private readonly gravity = -0.02;
   private isRotating = false;
   private previousMouseX = 0;
+  private inputCleanup: (() => void) | null = null;
 
   public autoRotate = true;
   public isPaused = true;
@@ -167,22 +168,57 @@ export class HelixEngine {
   }
 
   private setupInputs() {
+    if (!this.renderer) return;
+    const el = this.renderer.domElement;
+    el.style.touchAction = 'none';
+
     const move = (x: number) => {
-        if (!this.isRotating || !this.tower) return;
+        if (!this.tower || this.isPaused) return;
         this.tower.rotation.y += (x - this.previousMouseX) * 0.015;
         this.previousMouseX = x;
     };
 
-    this.container.addEventListener('mousedown', e => { this.isRotating = true; this.previousMouseX = e.clientX; });
-    window.addEventListener('mousemove', e => move(e.clientX));
-    window.addEventListener('mouseup', () => this.isRotating = false);
-
-    this.container.addEventListener('touchstart', e => {
+    const begin = (x: number) => {
+        if (this.isPaused) return;
         this.isRotating = true;
-        this.previousMouseX = e.touches[0].clientX;
-    }, { passive: true });
-    window.addEventListener('touchmove', e => move(e.touches[0].clientX), { passive: true });
-    window.addEventListener('touchend', () => this.isRotating = false);
+        this.previousMouseX = x;
+    };
+
+    const end = () => {
+        this.isRotating = false;
+    };
+
+    const onMouseDown = (e: MouseEvent) => begin(e.clientX);
+    const onMouseMove = (e: MouseEvent) => {
+        if (!this.isRotating) return;
+        move(e.clientX);
+    };
+    const onTouchStart = (e: TouchEvent) => {
+        if (e.touches.length > 0) begin(e.touches[0].clientX);
+    };
+    const onTouchMove = (e: TouchEvent) => {
+        if (!this.isRotating || e.touches.length === 0) return;
+        move(e.touches[0].clientX);
+    };
+
+    el.addEventListener('mousedown', onMouseDown);
+    el.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', end);
+
+    el.addEventListener('touchstart', onTouchStart, { passive: true });
+    el.addEventListener('touchmove', onTouchMove, { passive: true });
+    el.addEventListener('touchend', end, { passive: true });
+    el.addEventListener('touchcancel', end, { passive: true });
+
+    this.inputCleanup = () => {
+      el.removeEventListener('mousedown', onMouseDown);
+      el.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', end);
+      el.removeEventListener('touchstart', onTouchStart);
+      el.removeEventListener('touchmove', onTouchMove);
+      el.removeEventListener('touchend', end);
+      el.removeEventListener('touchcancel', end);
+    };
   }
 
   private animate = () => {
@@ -238,12 +274,15 @@ export class HelixEngine {
     const mat = this.ball.material as THREE.MeshBasicMaterial;
     if (s === 'gold') { mat.color.set(0xffd700); }
     else if (s === 'fire') { mat.color.set(0xff3300); }
-    else if (s === 'glass') { mat.color.set(0x00ffff); }
+    else if (s === 'glass' || s === 'ice') { mat.color.set(0x00ffff); }
+    else if (s === 'toxic') { mat.color.set(0x84cc16); }
     mat.needsUpdate = true;
   }
 
   public dispose() {
     window.removeEventListener('resize', this.onResize);
+    this.inputCleanup?.();
+    this.inputCleanup = null;
     if (this.animationId) cancelAnimationFrame(this.animationId);
     if (this.renderer) {
         this.renderer.dispose();

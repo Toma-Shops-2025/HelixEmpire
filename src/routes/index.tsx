@@ -4,9 +4,9 @@ import { cn } from '@/lib/utils'
 import { HelixEngine } from '@/game/HelixEngine'
 import { GameUI } from '@/components/GameUI'
 import { useAuth } from '@/hooks/use-auth'
-import { Browser } from '@capacitor/browser'
 import { Capacitor } from '@capacitor/core'
 import { initAds, showRewardedAd, showInterstitial, setBannerVisible } from '@/lib/ads'
+import { useBilling, PRODUCT_EMPIRE_PACK, PRODUCT_COINS_1000 } from '@/hooks/use-billing'
 import { Coins, Zap, Mail, Lock, User as UserIcon, Eye, EyeOff, Loader2, Sparkles, Trophy, Box, ShoppingBag, Award, Home } from 'lucide-react'
 import { toast } from 'sonner'
 import { CONFIG } from '@/config'
@@ -28,32 +28,95 @@ function GamePage() {
   const containerRef = useRef<HTMLDivElement>(null)
   const engineRef = useRef<HelixEngine | null>(null)
   const audioRef = useRef<HTMLAudioElement | null>(null)
-  const { user, profile, signIn, signInWithGoogle, signUp, addJumpPoints, addViralCoins, loading } = useAuth()
+  const { user, profile, signIn, signInWithGoogle, signUp, addJumpPoints, addViralCoins, deleteAccount, loading } = useAuth()
+  const { purchase, isReady: billingReady } = useBilling(addViralCoins)
 
   // Master State
   const [activeTab, setActiveTab] = useState<'play' | 'inventory' | 'store' | 'event'>('play')
   const [gameState, setGameState] = useState<'HOME' | 'PLAYING' | 'REVIVE' | 'WIN'>('HOME')
   const [score, setScore] = useState(0)
+  const scoreRef = useRef(0)
   const [level, setLevel] = useState(1)
   const [currentSkin, setCurrentSkin] = useState('fire')
   const [isProcessing, setIsProcessing] = useState(false)
   const [gamesCount, setGamesCount] = useState(0)
+  const lobbyBgmRef = useRef<HTMLAudioElement | null>(null)
 
   const isPlaying = gameState === 'PLAYING';
+  const hideNav = activeTab === 'play' && (gameState === 'PLAYING' || gameState === 'REVIVE');
+
+  const returnToHome = useCallback(() => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
+    }
+    if (engineRef.current) {
+      engineRef.current.reset();
+      engineRef.current.setPaused(true);
+      engineRef.current.setupLevel(level);
+    }
+    scoreRef.current = 0;
+    setScore(0);
+    setGameState('HOME');
+    setIsProcessing(false);
+    if (lobbyBgmRef.current) {
+      lobbyBgmRef.current.play().catch(() => undefined);
+    }
+  }, [level]);
+
+  // Lobby music on open (game music starts when you tap PLAY)
+  useEffect(() => {
+    if (!user) return;
+
+    const startLobbyBgm = () => {
+      if (!lobbyBgmRef.current) {
+        lobbyBgmRef.current = new Audio('/audio/promo.MP3');
+        lobbyBgmRef.current.loop = true;
+        lobbyBgmRef.current.volume = 0.15;
+      }
+      if (gameState === 'HOME') {
+        lobbyBgmRef.current.play().catch(() => undefined);
+      } else {
+        lobbyBgmRef.current.pause();
+      }
+    };
+
+    startLobbyBgm();
+    const onVisible = () => {
+      if (document.visibilityState === 'visible' && gameState === 'HOME') startLobbyBgm();
+    };
+    window.addEventListener('visibilitychange', onVisible);
+
+    return () => {
+      window.removeEventListener('visibilitychange', onVisible);
+      if (lobbyBgmRef.current) {
+        lobbyBgmRef.current.pause();
+        lobbyBgmRef.current = null;
+      }
+    };
+  }, [user, gameState]);
+
+  // Always land on the HOME menu when opening the app
+  useEffect(() => {
+    if (!user) return;
+    setGameState('HOME');
+    setScore(0);
+  }, [user?.id]);
 
   // Initialize Ads
   useEffect(() => {
     initAds();
   }, []);
 
-  // Handle Banner Visibility
+  // Show banner on Play tab only (Unity banner sits at screen bottom)
   useEffect(() => {
-    if (user) {
-        setBannerVisible(true);
+    if (!Capacitor.isNativePlatform()) return
+    if (user && activeTab === 'play') {
+      setBannerVisible(true)
     } else {
-        setBannerVisible(false);
+      setBannerVisible(false)
     }
-  }, [user, activeTab]);
+  }, [user, activeTab])
 
   const checkInterstitial = useCallback(() => {
     setGamesCount(prev => {
@@ -81,17 +144,22 @@ function GamePage() {
             engineRef.current.dispose();
             engineRef.current = null;
         }
+        setGameState('HOME');
         return;
     }
 
-    if (!engineRef.current) {
-        const engine = new HelixEngine(containerRef.current, {
+    if (engineRef.current) {
+        engineRef.current.dispose();
+        engineRef.current = null;
+    }
+
+    const engine = new HelixEngine(containerRef.current, {
           score: 0,
           level: level,
           onWin: async () => {
               setGameState('WIN');
               audioRef.current?.pause();
-              await addJumpPoints(score);
+              await addJumpPoints(scoreRef.current);
               await addViralCoins(50);
               checkInterstitial();
           },
@@ -100,16 +168,31 @@ function GamePage() {
               audioRef.current?.pause();
               checkInterstitial();
           },
-          onScoreUpdate: (pts) => setScore(prev => prev + pts)
+          onScoreUpdate: (pts) => {
+            setScore(prev => {
+              const next = prev + pts;
+              scoreRef.current = next;
+              return next;
+            });
+          }
         })
 
         engineRef.current = engine
         engine.setSkin(currentSkin);
         engine.setupLevel(level);
-    }
-  }, [user, activeTab, level, currentSkin, addJumpPoints, addViralCoins, score, checkInterstitial]);
+
+    return () => {
+      if (engineRef.current) {
+        engineRef.current.dispose();
+        engineRef.current = null;
+      }
+    };
+  }, [user, activeTab, level, currentSkin, addJumpPoints, addViralCoins, checkInterstitial]);
 
   const startGame = () => {
+    if (lobbyBgmRef.current) {
+      lobbyBgmRef.current.pause();
+    }
     if (audioRef.current) {
         audioRef.current.pause();
         audioRef.current.currentTime = 0;
@@ -119,6 +202,7 @@ function GamePage() {
     audio.loop = true;
     audioRef.current = audio;
 
+    scoreRef.current = 0;
     setScore(0);
     setGameState('PLAYING');
 
@@ -160,7 +244,7 @@ function GamePage() {
       <div
         ref={containerRef}
         className={cn(
-            "absolute inset-0 transition-opacity duration-500",
+            "absolute inset-0 z-[1] transition-opacity duration-500",
             activeTab === 'play' ? "opacity-100" : "opacity-0 pointer-events-none"
         )}
       />
@@ -171,22 +255,25 @@ function GamePage() {
             state={gameState}
             score={score}
             level={level}
+            viralCoins={profile?.coin_balance ?? 0}
+            jumpPoints={profile?.jump_balance ?? 0}
             onStart={startGame}
             onRevive={handleReviveRequest}
             onNext={() => {
                 setLevel(prev => prev + 1);
                 setGameState('HOME');
             }}
+            onQuit={returnToHome}
             isProcessing={isProcessing}
           />
       )}
 
       {activeTab === 'inventory' && <InventoryUI current={currentSkin} onSelect={setCurrentSkin} profile={profile} />}
-      {activeTab === 'store' && <StoreUI profile={profile} />}
-      {activeTab === 'event' && <LeaderboardUI profile={profile} />}
+      {activeTab === 'store' && <StoreUI profile={profile} onPurchase={purchase} billingReady={billingReady} />}
+      {activeTab === 'event' && <LeaderboardUI profile={profile} onEnterEvent={() => { toast.info('Reach Stage 100 to qualify!'); setActiveTab('play'); }} onDeleteAccount={deleteAccount} />}
 
-      {/* Navigation */}
-      <div className="absolute bottom-10 left-1/2 -translate-x-1/2 w-[90%] max-w-md z-[9000]">
+      {!hideNav && (
+      <div className="absolute bottom-14 left-1/2 -translate-x-1/2 w-[90%] max-w-md z-[9000] pointer-events-auto">
         <nav className="bg-black/80 backdrop-blur-3xl border-2 border-white/5 h-24 rounded-[40px] flex justify-around items-center px-6 shadow-2xl shadow-black">
             <NavButton icon={Home} label="PLAY" active={activeTab === 'play'} onClick={() => setActiveTab('play')} />
             <NavButton icon={Box} label="SKINS" active={activeTab === 'inventory'} onClick={() => setActiveTab('inventory')} />
@@ -194,13 +281,14 @@ function GamePage() {
             <NavButton icon={Award} label="WIN" active={activeTab === 'event'} onClick={() => setActiveTab('event')} />
         </nav>
       </div>
+      )}
     </div>
   )
 }
 
 function NavButton({ icon: Icon, label, active, onClick }: any) {
     return (
-        <button onClick={onClick} className={cn("flex flex-col items-center gap-1 transition-all flex-1 h-full justify-center relative", active ? "text-white" : "text-white/20")}>
+        <button type="button" onClick={onClick} className={cn("flex flex-col items-center gap-1 transition-all flex-1 h-full justify-center relative z-10", active ? "text-white" : "text-white/20")}>
             {active && (
                 <div className="absolute inset-x-2 inset-y-2 bg-white rounded-full flex items-center justify-center animate-in zoom-in duration-300 shadow-xl">
                     <div className="flex flex-col items-center gap-0.5">
@@ -277,6 +365,13 @@ function AuthUI({ onLogin, onGoogle, onSignUp }: any) {
                 >
                     {isLogin ? "Need an account? Sign Up" : "Back to Login"}
                 </button>
+
+                <p className="text-center text-[10px] text-white/30 mt-6 leading-relaxed">
+                    By continuing you agree to our{" "}
+                    <a href={CONFIG.PRIVACY_URL} target="_blank" rel="noopener noreferrer" className="text-orange-500 underline">Privacy Policy</a>
+                    {" "}and{" "}
+                    <a href={CONFIG.TERMS_URL} target="_blank" rel="noopener noreferrer" className="text-orange-500 underline">Terms</a>.
+                </p>
             </form>
         </div>
     )
@@ -320,9 +415,9 @@ function InventoryUI({ current, onSelect, profile }: any) {
     )
 }
 
-function StoreUI({ profile }: any) {
+function StoreUI({ profile, onPurchase, billingReady }: { profile: any; onPurchase: (id: string) => void; billingReady: boolean }) {
     return (
-        <div className="h-full w-full bg-black pt-20 px-6">
+        <div className="h-full w-full bg-black pt-20 px-6 overflow-y-auto pb-64 no-scrollbar">
             <AppBackground />
             <div className="relative z-10">
                 <h2 className="text-5xl font-black italic uppercase mb-2 text-center text-white">Empire Shop</h2>
@@ -340,7 +435,14 @@ function StoreUI({ profile }: any) {
                                 <span className="text-[8px] font-bold uppercase tracking-widest mt-2 opacity-60">No Ads + All Apps Pro</span>
                             </div>
                        </div>
-                       <button className="bg-white text-black px-6 py-3 rounded-2xl font-black uppercase text-xs shadow-xl active:scale-95 transition-all">Upgrade</button>
+                       <button
+                         type="button"
+                         onClick={() => onPurchase(PRODUCT_EMPIRE_PACK)}
+                         disabled={!billingReady}
+                         className="bg-white text-black px-6 py-3 rounded-2xl font-black uppercase text-xs shadow-xl active:scale-95 transition-all disabled:opacity-50"
+                       >
+                         Upgrade
+                       </button>
                     </div>
 
                     <div className="bg-white/5 border border-white/5 p-10 rounded-[50px] flex items-center justify-between shadow-xl backdrop-blur-xl">
@@ -353,7 +455,14 @@ function StoreUI({ profile }: any) {
                                 <span className="text-[8px] font-bold uppercase tracking-widest mt-2 opacity-30">Global Shared Currency</span>
                             </div>
                        </div>
-                       <button className="bg-orange-600 text-white px-8 py-4 rounded-2xl font-black uppercase text-xs shadow-xl active:scale-95 transition-all">$4.99</button>
+                       <button
+                         type="button"
+                         onClick={() => onPurchase(PRODUCT_COINS_1000)}
+                         disabled={!billingReady}
+                         className="bg-orange-600 text-white px-8 py-4 rounded-2xl font-black uppercase text-xs shadow-xl active:scale-95 transition-all disabled:opacity-50"
+                       >
+                         $4.99
+                       </button>
                     </div>
                 </div>
 
@@ -363,8 +472,17 @@ function StoreUI({ profile }: any) {
     )
 }
 
-function LeaderboardUI({ profile }: any) {
+function LeaderboardUI({ profile, onEnterEvent, onDeleteAccount }: { profile: any; onEnterEvent: () => void; onDeleteAccount: () => Promise<void> }) {
     const { signOut } = useAuth()
+    const handleDelete = async () => {
+        if (!confirm("Permanently delete your account and all Helix Empire data? This cannot be undone.")) return;
+        try {
+            await onDeleteAccount();
+            toast.success("Account deleted");
+        } catch (e: any) {
+            toast.error(e.message || "Could not delete account");
+        }
+    }
     return (
         <div className="h-full w-full bg-black pt-20 px-6 overflow-y-auto pb-64 no-scrollbar relative">
             <AppBackground />
@@ -379,11 +497,11 @@ function LeaderboardUI({ profile }: any) {
                     <h3 className="text-3xl font-black italic uppercase mb-1">Grand Masters</h3>
                     <p className="text-[9px] font-bold uppercase tracking-widest opacity-60 mb-10 leading-none italic">Reach Stage 100 to win 5,000 ViralCoins</p>
 
-                    <button className="w-full bg-white text-black py-6 rounded-[30px] font-black uppercase text-sm tracking-widest shadow-xl active:scale-95 transition-all">Enter Event</button>
+                    <button type="button" onClick={onEnterEvent} className="w-full bg-white text-black py-6 rounded-[30px] font-black uppercase text-sm tracking-widest shadow-xl active:scale-95 transition-all">Enter Event</button>
                 </div>
 
                 <div className="mt-20 flex flex-col items-center gap-6 text-center pb-20">
-                    <button onClick={() => { if(confirm("Permanently delete your account and all data? This cannot be undone.")) signOut(); }} className="text-red-500/20 text-[10px] font-black uppercase tracking-[0.2em] hover:opacity-100 transition-opacity underline italic">Delete Account</button>
+                    <button type="button" onClick={handleDelete} className="text-red-500/20 text-[10px] font-black uppercase tracking-[0.2em] hover:opacity-100 transition-opacity underline italic">Delete Account</button>
                     <button onClick={signOut} className="mt-4 text-white/20 text-[10px] font-black uppercase tracking-[0.2em] italic">Sign Out</button>
                 </div>
             </div>

@@ -157,5 +157,13 @@ export function useAuth() {
     await supabase.auth.signOut();
   };
 
-  return { user, profile, loading, signIn, signInWithGoogle, signUp, addJumpPoints, addViralCoins, signOut, supabase, fetchProfile };
+  const deleteAccount = async () => {
+    if (!user) return;
+    const userId = user.id;
+    const { error: profileError } = await supabase.from('profiles').delete().eq('id', userId);
+    if (profileError) throw profileError;
+    await supabase.auth.signOut();
+  };
+
+  return { user, profile, loading, signIn, signInWithGoogle, signUp, addJumpPoints, addViralCoins, signOut, deleteAccount, supabase, fetchProfile };
 }
