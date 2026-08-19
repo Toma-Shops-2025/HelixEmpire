@@ -18,8 +18,8 @@ export const Route = createFileRoute('/')({
 function AppBackground() {
   return (
     <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none bg-black">
-        <div className="absolute inset-0 opacity-80" style={{ backgroundImage: 'url(/bg-helix.png)', backgroundSize: 'cover', backgroundPosition: 'center' }} />
-        <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/50 to-black/80" />
+        <div className="absolute inset-0" style={{ backgroundImage: 'url(/bg-helix.png)', backgroundSize: 'cover', backgroundPosition: 'center' }} />
+        <div className="absolute inset-0 bg-black/55" />
     </div>
   )
 }
@@ -240,7 +240,7 @@ function GamePage() {
 
   return (
     <div className="h-screen w-full bg-black text-white relative overflow-hidden font-sans">
-      {(!isPlaying) && <AppBackground />}
+      <AppBackground />
       {/* 3D Container - Behind UI */}
       <div
         ref={containerRef}

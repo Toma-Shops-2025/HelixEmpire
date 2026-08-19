@@ -38,7 +38,7 @@ export class HelixEngine {
 
   private init() {
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0x000000);
+    this.scene.background = null;
 
     const width = window.innerWidth;
     const height = window.innerHeight;
@@ -48,7 +48,7 @@ export class HelixEngine {
 
     this.renderer = new THREE.WebGLRenderer({
         antialias: true,
-        alpha: false,
+        alpha: true,
         powerPreference: "high-performance"
     });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
