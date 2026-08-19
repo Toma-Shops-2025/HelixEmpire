@@ -10,7 +10,11 @@ interface Props {
 
 export function LegalLayout({ title, children, updated }: Props) {
   return (
-    <div className="h-screen bg-black text-white font-sans selection:bg-primary selection:text-white flex flex-col">
+    <div className="h-screen bg-black text-white font-sans selection:bg-primary selection:text-white flex flex-col relative">
+      <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none">
+        <div className="absolute inset-0 opacity-80" style={{ backgroundImage: 'url(/bg-helix.png)', backgroundSize: 'cover', backgroundPosition: 'center' }} />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/50 to-black/80" />
+      </div>
       <header className="sticky top-0 z-50 bg-black/80 backdrop-blur-xl border-b border-white/10 p-6 flex-shrink-0">
         <div className="max-w-3xl mx-auto flex items-center gap-4">
           <Link to="/" className="p-2 hover:bg-white/10 rounded-full transition-colors">
@@ -20,7 +24,7 @@ export function LegalLayout({ title, children, updated }: Props) {
         </div>
       </header>
 
-      <main className="flex-1 overflow-y-auto p-6 md:p-12 prose prose-invert prose-orange pb-32">
+      <main className="flex-1 overflow-y-auto p-6 md:p-12 prose prose-invert prose-orange pb-32 relative z-10">
         <div className="max-w-3xl mx-auto bg-white/5 border-2 border-white/10 p-8 rounded-[40px] shadow-2xl">
           <div className="mb-8">
             <h2 className="text-4xl font-black italic uppercase tracking-tighter mb-2 leading-none">{title}</h2>

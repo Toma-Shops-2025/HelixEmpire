@@ -18,8 +18,8 @@ export const Route = createFileRoute('/')({
 function AppBackground() {
   return (
     <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none bg-black">
-        <div className="absolute inset-0 bg-gradient-to-b from-black via-black/80 to-black" />
-        <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_50%_50%,rgba(234,88,12,0.15),transparent_70%)]" />
+        <div className="absolute inset-0 opacity-80" style={{ backgroundImage: 'url(/bg-helix.png)', backgroundSize: 'cover', backgroundPosition: 'center' }} />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/50 to-black/80" />
     </div>
   )
 }
@@ -240,6 +240,7 @@ function GamePage() {
 
   return (
     <div className="h-screen w-full bg-black text-white relative overflow-hidden font-sans">
+      {(!isPlaying) && <AppBackground />}
       {/* 3D Container - Behind UI */}
       <div
         ref={containerRef}
@@ -386,7 +387,7 @@ function InventoryUI({ current, onSelect, profile }: any) {
     ]
 
     return (
-        <div className="h-full w-full bg-black pt-20 px-6 overflow-y-auto pb-64 no-scrollbar">
+        <div className="h-full w-full pt-20 px-6 overflow-y-auto pb-64 no-scrollbar relative">
             <AppBackground />
             <div className="relative z-10">
                 <h2 className="text-5xl font-black italic uppercase mb-2 text-center">Inventory</h2>
@@ -417,7 +418,7 @@ function InventoryUI({ current, onSelect, profile }: any) {
 
 function StoreUI({ profile, onPurchase, billingReady }: { profile: any; onPurchase: (id: string) => void; billingReady: boolean }) {
     return (
-        <div className="h-full w-full bg-black pt-20 px-6 overflow-y-auto pb-64 no-scrollbar">
+        <div className="h-full w-full pt-20 px-6 overflow-y-auto pb-64 no-scrollbar relative">
             <AppBackground />
             <div className="relative z-10">
                 <h2 className="text-5xl font-black italic uppercase mb-2 text-center text-white">Empire Shop</h2>
@@ -484,7 +485,7 @@ function LeaderboardUI({ profile, onEnterEvent, onDeleteAccount }: { profile: an
         }
     }
     return (
-        <div className="h-full w-full bg-black pt-20 px-6 overflow-y-auto pb-64 no-scrollbar relative">
+        <div className="h-full w-full pt-20 px-6 overflow-y-auto pb-64 no-scrollbar relative">
             <AppBackground />
             <div className="relative z-10">
                 <h2 className="text-5xl font-black italic uppercase mb-2 text-center text-white">Challenges</h2>
