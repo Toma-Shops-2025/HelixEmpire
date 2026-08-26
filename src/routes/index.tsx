@@ -70,7 +70,7 @@ function GamePage() {
 
     const startLobbyBgm = () => {
       if (!lobbyBgmRef.current) {
-        lobbyBgmRef.current = new Audio('/audio/promo.mp3');
+        lobbyBgmRef.current = new Audio('/audio/promo.mp3?v=helix-bgm-2');
         lobbyBgmRef.current.loop = true;
         lobbyBgmRef.current.volume = 0.15;
       }
