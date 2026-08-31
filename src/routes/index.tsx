@@ -7,9 +7,11 @@ import { useAuth } from '@/hooks/use-auth'
 import { Capacitor } from '@capacitor/core'
 import { initAds, showRewardedAd, showInterstitial, setBannerVisible } from '@/lib/ads'
 import { useBilling, PRODUCT_EMPIRE_PACK, PRODUCT_COINS_1000 } from '@/hooks/use-billing'
-import { Coins, Zap, Mail, Lock, User as UserIcon, Eye, EyeOff, Loader2, Sparkles, Trophy, Box, ShoppingBag, Award, Home } from 'lucide-react'
+import { Coins, Zap, Mail, Lock, User as UserIcon, Eye, EyeOff, Loader2, Sparkles, Trophy, Box, ShoppingBag, Award, Home, Wallet, CreditCard } from 'lucide-react'
 import { toast } from 'sonner'
 import { CONFIG } from '@/config'
+import { VolumeBar } from '@/components/VolumeBar'
+import { registerBgm, unregisterBgm, applyVolumeToAll, DEFAULT_VOLUME, getEffectiveVolume } from '@/lib/bgm-control'
 
 export const Route = createFileRoute('/')({
   component: GamePage,
@@ -28,7 +30,7 @@ function GamePage() {
   const containerRef = useRef<HTMLDivElement>(null)
   const engineRef = useRef<HelixEngine | null>(null)
   const audioRef = useRef<HTMLAudioElement | null>(null)
-  const { user, profile, signIn, signInWithGoogle, signUp, addJumpPoints, addViralCoins, deleteAccount, loading } = useAuth()
+  const { user, profile, signIn, signInWithGoogle, signUp, addJumpPoints, addViralCoins, deleteAccount, loading, supabase, fetchProfile } = useAuth()
   const { purchase, isReady: billingReady } = useBilling(addViralCoins)
 
   // Master State
@@ -72,7 +74,9 @@ function GamePage() {
       if (!lobbyBgmRef.current) {
         lobbyBgmRef.current = new Audio('/audio/promo.mp3?v=helix-bgm-2');
         lobbyBgmRef.current.loop = true;
-        lobbyBgmRef.current.volume = 0.15;
+        registerBgm(lobbyBgmRef.current);
+      } else {
+        applyVolumeToAll();
       }
       if (gameState === 'HOME') {
         lobbyBgmRef.current.play().catch(() => undefined);
@@ -90,6 +94,7 @@ function GamePage() {
     return () => {
       window.removeEventListener('visibilitychange', onVisible);
       if (lobbyBgmRef.current) {
+        unregisterBgm(lobbyBgmRef.current);
         lobbyBgmRef.current.pause();
         lobbyBgmRef.current = null;
       }
@@ -200,6 +205,8 @@ function GamePage() {
     const randomTrack = Math.floor(Math.random() * 15) + 1;
     const audio = new Audio(`music/tier${randomTrack}.MP3`);
     audio.loop = true;
+    audio.volume = getEffectiveVolume();
+    registerBgm(audio);
     audioRef.current = audio;
 
     scoreRef.current = 0;
@@ -236,7 +243,12 @@ function GamePage() {
       </div>
   )
 
-  if (!user) return <AuthUI onLogin={signIn} onGoogle={signInWithGoogle} onSignUp={signUp} />
+  if (!user) return (
+    <>
+      <AuthUI onLogin={signIn} onGoogle={signInWithGoogle} onSignUp={signUp} />
+      <VolumeBar className="bottom-4" />
+    </>
+  )
 
   return (
     <div className="h-screen w-full bg-black text-white relative overflow-hidden font-sans">
@@ -271,7 +283,9 @@ function GamePage() {
 
       {activeTab === 'inventory' && <InventoryUI current={currentSkin} onSelect={setCurrentSkin} profile={profile} />}
       {activeTab === 'store' && <StoreUI profile={profile} onPurchase={purchase} billingReady={billingReady} />}
-      {activeTab === 'event' && <LeaderboardUI profile={profile} onEnterEvent={() => { toast.info('Reach Stage 100 to qualify!'); setActiveTab('play'); }} onDeleteAccount={deleteAccount} />}
+      {activeTab === 'event' && <VaultUI profile={profile} onDeleteAccount={deleteAccount} fetchProfile={fetchProfile} />}
+
+      {!hideNav && <VolumeBar className="bottom-[8.75rem]" />}
 
       {!hideNav && (
       <div className="absolute bottom-14 left-1/2 -translate-x-1/2 w-[90%] max-w-md z-[9000] pointer-events-auto">
@@ -279,7 +293,7 @@ function GamePage() {
             <NavButton icon={Home} label="PLAY" active={activeTab === 'play'} onClick={() => setActiveTab('play')} />
             <NavButton icon={Box} label="SKINS" active={activeTab === 'inventory'} onClick={() => setActiveTab('inventory')} />
             <NavButton icon={ShoppingBag} label="SHOP" active={activeTab === 'store'} onClick={() => setActiveTab('store')} />
-            <NavButton icon={Award} label="WIN" active={activeTab === 'event'} onClick={() => setActiveTab('event')} />
+            <NavButton icon={Award} label="WIN" active={activeTab === 'event'} accent onClick={() => setActiveTab('event')} />
         </nav>
       </div>
       )}
@@ -287,9 +301,9 @@ function GamePage() {
   )
 }
 
-function NavButton({ icon: Icon, label, active, onClick }: any) {
+function NavButton({ icon: Icon, label, active, onClick, accent }: any) {
     return (
-        <button type="button" onClick={onClick} className={cn("flex flex-col items-center gap-1 transition-all flex-1 h-full justify-center relative z-10", active ? "text-white" : "text-white/20")}>
+        <button type="button" onClick={onClick} className={cn("flex flex-col items-center gap-1 transition-all flex-1 h-full justify-center relative z-10", active ? (accent ? "text-orange-500" : "text-white") : "text-white/20")}>
             {active && (
                 <div className="absolute inset-x-2 inset-y-2 bg-white rounded-full flex items-center justify-center animate-in zoom-in duration-300 shadow-xl">
                     <div className="flex flex-col items-center gap-0.5">
@@ -473,37 +487,166 @@ function StoreUI({ profile, onPurchase, billingReady }: { profile: any; onPurcha
     )
 }
 
-function LeaderboardUI({ profile, onEnterEvent, onDeleteAccount }: { profile: any; onEnterEvent: () => void; onDeleteAccount: () => Promise<void> }) {
-    const { signOut } = useAuth()
-    const handleDelete = async () => {
-        if (!confirm("Permanently delete your account and all Helix Empire data? This cannot be undone.")) return;
+const REWARDS = [
+  { id: 'v5', name: '$5 Visa Card', jpCost: 5_000, type: 'Visa' as const },
+  { id: 'a5', name: '$5 Amazon Gift', jpCost: 5_000, type: 'Amazon' as const },
+  { id: 'p5', name: '$5 PayPal Cash', jpCost: 5_000, type: 'PayPal' as const },
+  { id: 'v10', name: '$10 Visa Card', jpCost: 10_000, type: 'Visa' as const },
+  { id: 'a10', name: '$10 Amazon Gift', jpCost: 10_000, type: 'Amazon' as const },
+  { id: 'p10', name: '$10 PayPal Cash', jpCost: 10_000, type: 'PayPal' as const },
+  { id: 'v25', name: '$25 Visa Card', jpCost: 25_000, type: 'Visa' as const },
+  { id: 'a25', name: '$25 Amazon Gift', jpCost: 25_000, type: 'Amazon' as const },
+  { id: 'p25', name: '$25 PayPal Cash', jpCost: 25_000, type: 'PayPal' as const },
+];
+
+function VaultUI({ profile, onDeleteAccount, fetchProfile }: { profile: any; onDeleteAccount: () => Promise<void>; fetchProfile: (id: string) => Promise<void> }) {
+    const { user, supabase, signOut } = useAuth()
+    const [isRedeeming, setIsRedeeming] = useState(false)
+    const jpBalance = profile?.jump_balance ?? 0
+
+    const handlePayoutRequest = async (reward: typeof REWARDS[number]) => {
+        if (!user) {
+            toast.error('Please sign in to redeem rewards.')
+            return
+        }
+        if (jpBalance < reward.jpCost || isRedeeming) {
+            toast.error('Not enough JP for this reward.')
+            return
+        }
+        if (!confirm(`Redeem ${reward.name} for ${reward.jpCost.toLocaleString()} JP?`)) return
+        setIsRedeeming(true)
         try {
-            await onDeleteAccount();
-            toast.success("Account deleted");
+            const newBalance = Math.max(0, jpBalance - reward.jpCost)
+            const { error: updErr } = await supabase
+                .from('profiles')
+                .update({ jump_balance: newBalance })
+                .eq('id', user.id)
+            if (updErr) throw updErr
+
+            const { error } = await supabase.from('payout_requests').insert({
+                user_id: user.id,
+                reward_name: reward.name,
+                points_cost: reward.jpCost,
+                status: 'pending',
+            })
+            if (error) {
+                await supabase.from('profiles').update({ jump_balance: jpBalance }).eq('id', user.id)
+                throw error
+            }
+            await fetchProfile(user.id)
+            toast.success('Redemption Submitted!', {
+                description: 'Payouts are processed within 24–48 hours.',
+            })
         } catch (e: any) {
-            toast.error(e.message || "Could not delete account");
+            toast.error(e?.message || 'Redemption failed')
+        } finally {
+            setIsRedeeming(false)
         }
     }
+
+    const handleDelete = async () => {
+        if (!confirm('Permanently delete your account and all Helix Empire data? This cannot be undone.')) return
+        try {
+            await onDeleteAccount()
+            toast.success('Account deleted')
+        } catch (e: any) {
+            toast.error(e.message || 'Could not delete account')
+        }
+    }
+
     return (
-        <div className="h-full w-full pt-20 px-6 overflow-y-auto pb-64 no-scrollbar relative">
+        <div className="h-full w-full pt-16 px-4 overflow-y-auto pb-64 no-scrollbar relative">
             <AppBackground />
-            <div className="relative z-10">
-                <h2 className="text-5xl font-black italic uppercase mb-2 text-center text-white">Challenges</h2>
-                <p className="text-[10px] font-black uppercase tracking-[0.4em] text-blue-500 text-center mb-12 flex items-center justify-center gap-2 italic">
-                    <Zap className="h-3 w-3 fill-current" /> Live Server Hub
-                </p>
+            <div className="relative z-10 max-w-md mx-auto">
+                <header className="pb-6 flex items-center gap-3">
+                    <h1 className="text-xl font-black uppercase italic tracking-tighter">
+                        THE <span className="text-orange-500">EMPIRE VAULT</span>
+                    </h1>
+                </header>
 
-                <div className="bg-gradient-to-br from-purple-700 to-indigo-950 p-12 rounded-[60px] shadow-2xl relative overflow-hidden text-center border border-white/5">
-                    <Trophy className="h-24 w-24 text-yellow-400 mx-auto mb-8 opacity-90 drop-shadow-[0_0_20px_rgba(250,204,21,0.4)]" />
-                    <h3 className="text-3xl font-black italic uppercase mb-1">Grand Masters</h3>
-                    <p className="text-[9px] font-bold uppercase tracking-widest opacity-60 mb-10 leading-none italic">Reach Stage 100 to win 5,000 ViralCoins</p>
-
-                    <button type="button" onClick={onEnterEvent} className="w-full bg-white text-black py-6 rounded-[30px] font-black uppercase text-sm tracking-widest shadow-xl active:scale-95 transition-all">Enter Event</button>
+                <div className="bg-gradient-to-br from-[#1a0a00] to-black border border-orange-600/20 rounded-[2rem] p-8 text-center shadow-2xl relative overflow-hidden mb-6">
+                    <div className="absolute top-0 right-0 p-4 opacity-10">
+                        <Wallet className="w-24 h-24 rotate-12 text-orange-500" />
+                    </div>
+                    <p className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] mb-1 italic">
+                        Total Jump Balance
+                    </p>
+                    <p className="text-6xl font-black tracking-tighter text-white tabular-nums italic">
+                        {jpBalance.toLocaleString()}
+                    </p>
+                    <p className="text-[10px] text-orange-500 font-bold mt-2 uppercase tracking-widest">
+                        JP · Redemption Ready
+                    </p>
                 </div>
 
-                <div className="mt-20 flex flex-col items-center gap-6 text-center pb-20">
-                    <button type="button" onClick={handleDelete} className="text-red-500/20 text-[10px] font-black uppercase tracking-[0.2em] hover:opacity-100 transition-opacity underline italic">Delete Account</button>
-                    <button onClick={signOut} className="mt-4 text-white/20 text-[10px] font-black uppercase tracking-[0.2em] italic">Sign Out</button>
+                <div className="space-y-3">
+                    <h3 className="text-[10px] font-black text-white/40 uppercase tracking-widest px-2 italic">
+                        Select Reward
+                    </h3>
+                    {REWARDS.map((r) => {
+                        const isUnlocked = jpBalance >= r.jpCost
+                        const Icon = r.type === 'PayPal' ? Wallet : CreditCard
+                        const iconBg =
+                            r.type === 'Amazon'
+                                ? 'bg-orange-600'
+                                : r.type === 'PayPal'
+                                  ? 'bg-emerald-600'
+                                  : 'bg-orange-500'
+
+                        return (
+                            <div
+                                key={r.id}
+                                className={cn(
+                                    'rounded-3xl border p-5 flex items-center justify-between transition-all',
+                                    isUnlocked
+                                        ? 'border-orange-500/30 bg-orange-500/5'
+                                        : 'border-white/5 bg-white/5 opacity-50',
+                                )}
+                            >
+                                <div className="flex items-center gap-4 text-left min-w-0">
+                                    <div className={cn('h-12 w-12 shrink-0 rounded-2xl flex items-center justify-center shadow-lg text-white', iconBg)}>
+                                        <Icon className="w-6 h-6" />
+                                    </div>
+                                    <div className="min-w-0">
+                                        <h4 className="font-black text-sm uppercase italic truncate">{r.name}</h4>
+                                        <p className="text-[10px] text-white/40 font-bold uppercase mt-0.5">
+                                            {isUnlocked
+                                                ? 'Ready to claim'
+                                                : `Unlock at ${r.jpCost.toLocaleString()} JP`}
+                                        </p>
+                                    </div>
+                                </div>
+                                {isUnlocked ? (
+                                    <button
+                                        type="button"
+                                        onClick={() => void handlePayoutRequest(r)}
+                                        disabled={isRedeeming}
+                                        className="shrink-0 bg-orange-600 text-white text-[10px] font-black px-5 py-2.5 rounded-xl active:scale-95 transition-all italic disabled:opacity-50"
+                                    >
+                                        {isRedeeming ? '...' : 'REDEEM'}
+                                    </button>
+                                ) : (
+                                    <Lock className="w-4 h-4 text-white/20 shrink-0 mr-1" />
+                                )}
+                            </div>
+                        )
+                    })}
+                </div>
+
+                <div className="flex flex-col items-center gap-4 pt-8 pb-4">
+                    <button
+                        type="button"
+                        onClick={() => window.location.assign('mailto:support@helixempire.fun')}
+                        className="text-white/30 text-[10px] font-black uppercase tracking-widest underline italic"
+                    >
+                        Contact Support
+                    </button>
+                    <button type="button" onClick={handleDelete} className="text-red-500/30 text-[10px] font-black uppercase tracking-widest underline italic">
+                        Delete Account
+                    </button>
+                    <button type="button" onClick={signOut} className="text-white/20 text-[10px] font-black uppercase tracking-widest italic">
+                        Sign Out
+                    </button>
                 </div>
             </div>
         </div>
