@@ -6,8 +6,8 @@ import { GameUI } from '@/components/GameUI'
 import { useAuth } from '@/hooks/use-auth'
 import { Capacitor } from '@capacitor/core'
 import { initAds, showRewardedAd, showInterstitial, setBannerVisible } from '@/lib/ads'
-import { useBilling, PRODUCT_EMPIRE_PACK, PRODUCT_COINS_1000 } from '@/hooks/use-billing'
-import { Coins, Zap, Mail, Lock, User as UserIcon, Eye, EyeOff, Loader2, Sparkles, Trophy, Box, ShoppingBag, Award, Home, Wallet, CreditCard } from 'lucide-react'
+import { useBilling, PRODUCT_COINS_1000 } from '@/hooks/use-billing'
+import { Coins, Zap, Mail, Lock, User as UserIcon, Eye, EyeOff, Loader2, Trophy, Box, ShoppingBag, Award, Home, Wallet, CreditCard } from 'lucide-react'
 import { toast } from 'sonner'
 import { CONFIG } from '@/config'
 import { VolumeBar } from '@/components/VolumeBar'
@@ -31,7 +31,7 @@ function GamePage() {
   const engineRef = useRef<HelixEngine | null>(null)
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const { user, profile, signIn, signInWithGoogle, signUp, addJumpPoints, addViralCoins, deleteAccount, loading, supabase, fetchProfile } = useAuth()
-  const { purchase, isReady: billingReady } = useBilling(addViralCoins)
+  const { purchase, isReady: billingReady, isPurchasing } = useBilling(addViralCoins)
 
   // Master State
   const [activeTab, setActiveTab] = useState<'play' | 'inventory' | 'store' | 'event'>('play')
@@ -282,7 +282,14 @@ function GamePage() {
       )}
 
       {activeTab === 'inventory' && <InventoryUI current={currentSkin} onSelect={setCurrentSkin} profile={profile} />}
-      {activeTab === 'store' && <StoreUI profile={profile} onPurchase={purchase} billingReady={billingReady} />}
+      {activeTab === 'store' && (
+        <StoreUI
+          profile={profile}
+          onPurchase={purchase}
+          billingReady={billingReady}
+          isPurchasing={isPurchasing}
+        />
+      )}
       {activeTab === 'event' && <VaultUI profile={profile} onDeleteAccount={deleteAccount} fetchProfile={fetchProfile} />}
 
       {!hideNav && <VolumeBar className="bottom-[8.75rem]" />}
@@ -430,36 +437,27 @@ function InventoryUI({ current, onSelect, profile }: any) {
     )
 }
 
-function StoreUI({ profile, onPurchase, billingReady }: { profile: any; onPurchase: (id: string) => void; billingReady: boolean }) {
+function StoreUI({
+  profile,
+  onPurchase,
+  billingReady,
+  isPurchasing,
+}: {
+  profile: any
+  onPurchase: (id: string) => void | Promise<void>
+  billingReady: boolean
+  isPurchasing: boolean
+}) {
+    const vc = profile?.coin_balance ?? 0
     return (
         <div className="h-full w-full pt-20 px-6 overflow-y-auto pb-64 no-scrollbar relative">
             <AppBackground />
             <div className="relative z-10">
                 <h2 className="text-5xl font-black italic uppercase mb-2 text-center text-white">Empire Shop</h2>
-                <p className="text-[10px] font-black uppercase tracking-[0.4em] text-white/30 text-center mb-12 italic">Official Premium Store</p>
+                <p className="text-[10px] font-black uppercase tracking-[0.4em] text-white/30 text-center mb-4 italic">Official Premium Store</p>
+                <p className="text-center text-orange-500 font-black tabular-nums mb-12 italic">{vc.toLocaleString()} VC</p>
 
                 <div className="space-y-4">
-                    <div className="bg-gradient-to-br from-blue-600 to-blue-900 p-10 rounded-[50px] flex items-center justify-between shadow-2xl relative overflow-hidden border border-white/10">
-                       <div className="absolute -left-4 -bottom-4 w-32 h-32 bg-white/5 rounded-full blur-3xl" />
-                       <div className="flex items-center gap-6 relative z-10 text-left">
-                            <div className="w-16 h-16 bg-white/10 rounded-3xl flex items-center justify-center backdrop-blur-xl border border-white/10">
-                                <Sparkles className="h-8 w-8 text-blue-300" />
-                            </div>
-                            <div className="flex flex-col">
-                                <span className="text-xl font-black uppercase italic leading-none">Empire<br/>Pack</span>
-                                <span className="text-[8px] font-bold uppercase tracking-widest mt-2 opacity-60">No Ads + All Apps Pro</span>
-                            </div>
-                       </div>
-                       <button
-                         type="button"
-                         onClick={() => onPurchase(PRODUCT_EMPIRE_PACK)}
-                         disabled={!billingReady}
-                         className="bg-white text-black px-6 py-3 rounded-2xl font-black uppercase text-xs shadow-xl active:scale-95 transition-all disabled:opacity-50"
-                       >
-                         Upgrade
-                       </button>
-                    </div>
-
                     <div className="bg-white/5 border border-white/5 p-10 rounded-[50px] flex items-center justify-between shadow-xl backdrop-blur-xl">
                        <div className="flex items-center gap-6 text-left">
                             <div className="w-16 h-16 bg-yellow-500/20 rounded-3xl flex items-center justify-center border border-yellow-500/20">
@@ -467,16 +465,16 @@ function StoreUI({ profile, onPurchase, billingReady }: { profile: any; onPurcha
                             </div>
                             <div className="flex flex-col">
                                 <span className="text-xl font-black uppercase italic leading-none">1,000<br/>ViralCoins</span>
-                                <span className="text-[8px] font-bold uppercase tracking-widest mt-2 opacity-30">Global Shared Currency</span>
+                                <span className="text-[8px] font-bold uppercase tracking-widest mt-2 opacity-30">Skin currency pack</span>
                             </div>
                        </div>
                        <button
                          type="button"
-                         onClick={() => onPurchase(PRODUCT_COINS_1000)}
-                         disabled={!billingReady}
+                         onClick={() => void onPurchase(PRODUCT_COINS_1000)}
+                         disabled={isPurchasing}
                          className="bg-orange-600 text-white px-8 py-4 rounded-2xl font-black uppercase text-xs shadow-xl active:scale-95 transition-all disabled:opacity-50"
                        >
-                         $4.99
+                         {isPurchasing ? '...' : billingReady ? '$4.99' : '$4.99'}
                        </button>
                     </div>
                 </div>
@@ -488,15 +486,15 @@ function StoreUI({ profile, onPurchase, billingReady }: { profile: any; onPurcha
 }
 
 const REWARDS = [
-  { id: 'v5', name: '$5 Visa Card', jpCost: 5_000, type: 'Visa' as const },
-  { id: 'a5', name: '$5 Amazon Gift', jpCost: 5_000, type: 'Amazon' as const },
-  { id: 'p5', name: '$5 PayPal Cash', jpCost: 5_000, type: 'PayPal' as const },
-  { id: 'v10', name: '$10 Visa Card', jpCost: 10_000, type: 'Visa' as const },
-  { id: 'a10', name: '$10 Amazon Gift', jpCost: 10_000, type: 'Amazon' as const },
-  { id: 'p10', name: '$10 PayPal Cash', jpCost: 10_000, type: 'PayPal' as const },
-  { id: 'v25', name: '$25 Visa Card', jpCost: 25_000, type: 'Visa' as const },
-  { id: 'a25', name: '$25 Amazon Gift', jpCost: 25_000, type: 'Amazon' as const },
-  { id: 'p25', name: '$25 PayPal Cash', jpCost: 25_000, type: 'PayPal' as const },
+  { id: 'v5', name: '$5 Visa Card', jpCost: 100_000, type: 'Visa' as const },
+  { id: 'a5', name: '$5 Amazon Gift', jpCost: 100_000, type: 'Amazon' as const },
+  { id: 'p5', name: '$5 PayPal Cash', jpCost: 100_000, type: 'PayPal' as const },
+  { id: 'v10', name: '$10 Visa Card', jpCost: 200_000, type: 'Visa' as const },
+  { id: 'a10', name: '$10 Amazon Gift', jpCost: 200_000, type: 'Amazon' as const },
+  { id: 'p10', name: '$10 PayPal Cash', jpCost: 200_000, type: 'PayPal' as const },
+  { id: 'v25', name: '$25 Visa Card', jpCost: 500_000, type: 'Visa' as const },
+  { id: 'a25', name: '$25 Amazon Gift', jpCost: 500_000, type: 'Amazon' as const },
+  { id: 'p25', name: '$25 PayPal Cash', jpCost: 500_000, type: 'PayPal' as const },
 ];
 
 function VaultUI({ profile, onDeleteAccount, fetchProfile }: { profile: any; onDeleteAccount: () => Promise<void>; fetchProfile: (id: string) => Promise<void> }) {
