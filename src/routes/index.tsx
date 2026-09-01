@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { useEffect, useRef, useState, useCallback } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, useCallback } from 'react'
 import { cn } from '@/lib/utils'
 import { HelixEngine } from '@/game/HelixEngine'
 import { GameUI } from '@/components/GameUI'
@@ -140,51 +140,56 @@ function GamePage() {
     if (audioRef.current) audioRef.current.play().catch(() => {});
   }, []);
 
-  // Game Engine Lifecycle
-  useEffect(() => {
-    if (!containerRef.current || !user) return
+  // Game Engine Lifecycle — wait until auth loading finishes so containerRef is mounted
+  useLayoutEffect(() => {
+    const shouldRunEngine = !loading && user && activeTab === 'play';
 
-    if (activeTab !== 'play') {
-        if (engineRef.current) {
-            engineRef.current.dispose();
-            engineRef.current = null;
-        }
-        setGameState('HOME');
-        return;
-    }
-
-    if (engineRef.current) {
+    if (!shouldRunEngine) {
+      if (engineRef.current) {
         engineRef.current.dispose();
         engineRef.current = null;
+      }
+      if (user && !loading && activeTab !== 'play') {
+        setGameState('HOME');
+      }
+      return;
     }
 
-    const engine = new HelixEngine(containerRef.current, {
-          score: 0,
-          level: level,
-          onWin: async () => {
-              setGameState('WIN');
-              audioRef.current?.pause();
-              await addJumpPoints(scoreRef.current);
-              await addViralCoins(50);
-              checkInterstitial();
-          },
-          onLoss: () => {
-              setGameState('REVIVE');
-              audioRef.current?.pause();
-              checkInterstitial();
-          },
-          onScoreUpdate: (pts) => {
-            setScore(prev => {
-              const next = prev + pts;
-              scoreRef.current = next;
-              return next;
-            });
-          }
-        })
+    const container = containerRef.current;
+    if (!container) return;
 
-        engineRef.current = engine
-        engine.setSkin(currentSkin);
-        engine.setupLevel(level);
+    if (engineRef.current) {
+      engineRef.current.dispose();
+      engineRef.current = null;
+    }
+
+    const engine = new HelixEngine(container, {
+      score: 0,
+      level: level,
+      onWin: async () => {
+        setGameState('WIN');
+        audioRef.current?.pause();
+        await addJumpPoints(scoreRef.current);
+        await addViralCoins(50);
+        checkInterstitial();
+      },
+      onLoss: () => {
+        setGameState('REVIVE');
+        audioRef.current?.pause();
+        checkInterstitial();
+      },
+      onScoreUpdate: (pts) => {
+        setScore((prev) => {
+          const next = prev + pts;
+          scoreRef.current = next;
+          return next;
+        });
+      },
+    });
+
+    engineRef.current = engine;
+    engine.setSkin(currentSkin);
+    engine.setupLevel(level);
 
     return () => {
       if (engineRef.current) {
@@ -192,7 +197,7 @@ function GamePage() {
         engineRef.current = null;
       }
     };
-  }, [user, activeTab, level, currentSkin, addJumpPoints, addViralCoins, checkInterstitial]);
+  }, [loading, user, activeTab, level, currentSkin, addJumpPoints, addViralCoins, checkInterstitial]);
 
   const startGame = () => {
     if (lobbyBgmRef.current) {
@@ -216,6 +221,35 @@ function GamePage() {
     if (engineRef.current) {
         engineRef.current.reset();
         engineRef.current.start();
+    } else if (containerRef.current && !loading && user) {
+        // Safety net if engine missed first init (shouldn't happen after loading fix)
+        const engine = new HelixEngine(containerRef.current, {
+          score: 0,
+          level: level,
+          onWin: async () => {
+            setGameState('WIN');
+            audioRef.current?.pause();
+            await addJumpPoints(scoreRef.current);
+            await addViralCoins(50);
+            checkInterstitial();
+          },
+          onLoss: () => {
+            setGameState('REVIVE');
+            audioRef.current?.pause();
+            checkInterstitial();
+          },
+          onScoreUpdate: (pts) => {
+            setScore((prev) => {
+              const next = prev + pts;
+              scoreRef.current = next;
+              return next;
+            });
+          },
+        });
+        engineRef.current = engine;
+        engine.setSkin(currentSkin);
+        engine.setupLevel(level);
+        engine.start();
     }
     audio.play().catch(() => {});
   }
