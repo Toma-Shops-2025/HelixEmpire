@@ -204,7 +204,7 @@ export function useBilling(addViralCoins: (n: number) => void | Promise<void>) {
       }
 
       toast.info('Opening Google Play checkout...');
-      const error = await store.order(offer);
+      const error = await offer.order();
       if (error?.isError || error?.message) {
         if (error.code === CdvPurchase.ErrorCode.PAYMENT_CANCELLED) {
           toast.info('Purchase cancelled.');

@@ -31,7 +31,7 @@ function GamePage() {
   const engineRef = useRef<HelixEngine | null>(null)
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const { user, profile, signIn, signInWithGoogle, signUp, addJumpPoints, addViralCoins, deleteAccount, loading, supabase, fetchProfile } = useAuth()
-  const { purchase, isReady: billingReady, isPurchasing } = useBilling(addViralCoins)
+  const { purchase, isReady: billingReady, isPurchasing, ensureInitialized } = useBilling(addViralCoins)
 
   // Master State
   const [activeTab, setActiveTab] = useState<'play' | 'inventory' | 'store' | 'event'>('play')
@@ -43,6 +43,10 @@ function GamePage() {
   const [isProcessing, setIsProcessing] = useState(false)
   const [gamesCount, setGamesCount] = useState(0)
   const lobbyBgmRef = useRef<HTMLAudioElement | null>(null)
+
+  useEffect(() => {
+    if (activeTab === 'store') void ensureInitialized()
+  }, [activeTab, ensureInitialized])
 
   const isPlaying = gameState === 'PLAYING';
   const hideNav = activeTab === 'play' && (gameState === 'PLAYING' || gameState === 'REVIVE');
@@ -506,11 +510,16 @@ function StoreUI({
                          type="button"
                          onClick={() => void onPurchase(PRODUCT_COINS_1000)}
                          disabled={isPurchasing}
-                         className="bg-orange-600 text-white px-8 py-4 rounded-2xl font-black uppercase text-xs shadow-xl active:scale-95 transition-all disabled:opacity-50"
+                         className="bg-orange-600 text-white px-8 py-4 rounded-2xl font-black uppercase text-xs shadow-xl active:scale-95 transition-all disabled:opacity-50 min-w-[88px]"
                        >
-                         {isPurchasing ? '...' : billingReady ? '$4.99' : '$4.99'}
+                         {isPurchasing ? '...' : '$4.99'}
                        </button>
                     </div>
+                    {!billingReady && (
+                      <p className="text-[9px] text-white/30 font-bold uppercase tracking-widest mt-3 text-right">
+                        Tap $4.99 to connect Play Store
+                      </p>
+                    )}
                 </div>
 
                 <p className="text-center text-[7px] font-black uppercase tracking-[0.5em] text-white/10 mt-12">Transactions secured by Google Play</p>
