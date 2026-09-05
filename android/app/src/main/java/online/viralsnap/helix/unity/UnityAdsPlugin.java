@@ -40,7 +40,7 @@ import com.unity3d.ads.UnityAdsError;
 public class UnityAdsPlugin extends Plugin {
 
     private static final String TAG = "UnityAdsPlugin";
-    private static final String GAME_ID = "6168871";
+    private static final String GAME_ID = "6185623";
 
     private static final String REWARDED_ID = "Rewarded_Android";
     private static final String INTERSTITIAL_ID = "Interstitial_Android";

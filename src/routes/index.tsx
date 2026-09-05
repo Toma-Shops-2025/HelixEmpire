@@ -140,7 +140,8 @@ function GamePage() {
   const handleReviveSuccess = useCallback(() => {
     setGameState('PLAYING');
     setIsProcessing(false);
-    if (engineRef.current) engineRef.current.start();
+    // Use revive() — start() left the ball sitting on the hazard with a dead rAF after ads.
+    if (engineRef.current) engineRef.current.revive();
     if (audioRef.current) audioRef.current.play().catch(() => {});
   }, []);
 
@@ -180,7 +181,6 @@ function GamePage() {
       onLoss: () => {
         setGameState('REVIVE');
         audioRef.current?.pause();
-        checkInterstitial();
       },
       onScoreUpdate: (pts) => {
         setScore((prev) => {
@@ -240,7 +240,6 @@ function GamePage() {
           onLoss: () => {
             setGameState('REVIVE');
             audioRef.current?.pause();
-            checkInterstitial();
           },
           onScoreUpdate: (pts) => {
             setScore((prev) => {

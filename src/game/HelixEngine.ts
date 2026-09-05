@@ -82,8 +82,15 @@ export class HelixEngine {
     this.setupInputs();
 
     window.addEventListener('resize', this.onResize);
-    this.animate();
+    document.addEventListener('visibilitychange', this.onVisibilityChange);
+    this.kickAnimationLoop();
   }
+
+  private onVisibilityChange = () => {
+    if (document.visibilityState === 'visible') {
+      this.kickAnimationLoop();
+    }
+  };
 
   private onResize = () => {
     const width = window.innerWidth;
@@ -101,6 +108,7 @@ export class HelixEngine {
     this.isPaused = false;
     this.autoRotate = false;
     this.ballVelocity = -0.05;
+    this.kickAnimationLoop();
   }
 
   public reset() {
@@ -110,11 +118,34 @@ export class HelixEngine {
     this.lastHitPlatform = null;
     this.isPaused = false;
     this.autoRotate = false;
+    this.kickAnimationLoop();
+  }
+
+  /** After a death/ad: lift off the hazard, bounce, and restart the render loop. */
+  public revive() {
+    if (!this.ball) return;
+    // Hazard collisions leave the ball overlapping the red segment — nudge up first.
+    this.ball.position.y += 3.5;
+    this.lastHitPlatform = null;
+    this.isPaused = false;
+    this.autoRotate = false;
+    this.ballVelocity = this.jumpForce;
+    this.kickAnimationLoop();
   }
 
   public setPaused(val: boolean) {
     this.isPaused = val;
     this.autoRotate = val;
+    if (!val) this.kickAnimationLoop();
+  }
+
+  /** Android WebView often drops rAF while a fullscreen Unity ad is showing. */
+  private kickAnimationLoop() {
+    if (this.animationId != null) {
+      cancelAnimationFrame(this.animationId);
+      this.animationId = null;
+    }
+    this.animationId = requestAnimationFrame(this.animate);
   }
 
   public setupLevel(level: number) {
@@ -281,9 +312,11 @@ export class HelixEngine {
 
   public dispose() {
     window.removeEventListener('resize', this.onResize);
+    document.removeEventListener('visibilitychange', this.onVisibilityChange);
     this.inputCleanup?.();
     this.inputCleanup = null;
-    if (this.animationId) cancelAnimationFrame(this.animationId);
+    if (this.animationId != null) cancelAnimationFrame(this.animationId);
+    this.animationId = null;
     if (this.renderer) {
         this.renderer.dispose();
         if (this.renderer.domElement.parentNode) this.renderer.domElement.parentNode.removeChild(this.renderer.domElement);
