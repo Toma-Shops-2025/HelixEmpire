@@ -1,5 +1,9 @@
-# Helix Empire - Build signed AAB for Google Play
+# Helix Empire - Build signed release AAB for Google Play
 # Usage: cd Desktop\HelixEmpire ; .\build-aab.ps1
+#
+# Optional: installable APK for device testing (PowerShell — do not use bash "&&"):
+#   cd android; .\gradlew.bat :app:assembleRelease
+# Play uploads use the AAB from this script; you do not need assembleRelease for that.
 
 $ProjectPath  = "$env:USERPROFILE\Desktop\HelixEmpire"
 $KeystorePath = "C:\Keys\helix-jump.jks"
