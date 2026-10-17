@@ -19,3 +19,20 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+
+-keepattributes *Annotation*
+-keepattributes SourceFile,LineNumberTable
+
+-keep @com.getcapacitor.annotation.CapacitorPlugin public class * {
+    @com.getcapacitor.PluginMethod public <methods>;
+}
+
+-keep public class * extends com.getcapacitor.Plugin { *; }
+
+-keep public class * extends org.apache.cordova.* {
+    public <methods>;
+    public <fields>;
+}
+
+-keep class com.unity3d.ads.** { *; }
+-keep class com.android.billingclient.** { *; }
